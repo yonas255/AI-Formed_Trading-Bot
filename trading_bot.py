@@ -53,6 +53,37 @@ def download_model_from_github():
         print("✅ Model file already exists locally")
         return True
 
+def download_scaler_from_github():
+    """Download the scaler file from GitHub if it doesn't exist locally."""
+    if not os.path.exists(SCALER_PATH):
+        print("📥 Downloading scaler from GitHub...")
+        try:
+            # Replace with your actual GitHub raw file URL for scaler
+            scaler_url = "https://github.com/yonas255/bot-files/raw/d85a362794a87a4ce0050f9e145664159b107da9/scaler.pkl"
+            response = requests.get(scaler_url, stream=True)
+            response.raise_for_status()
+
+            with open(SCALER_PATH, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print("✅ Scaler downloaded successfully!")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to download scaler: {e}")
+            return False
+    else:
+        print("✅ Scaler file already exists locally")
+        return True
+
+def create_mock_scaler():
+    """Create a mock scaler for fallback when real scaler is not available."""
+    from sklearn.preprocessing import MinMaxScaler
+    mock_scaler = MinMaxScaler()
+    # Fit with some dummy data to make it functional
+    dummy_data = np.array([[30000], [70000]])  # Rough BTC price range
+    mock_scaler.fit(dummy_data)
+    return mock_scaler
+
 def setup_google_sheets(json_keyfile_path, sheet_id, worksheet_name="Sheet1"):
      scope = ["https://spreadsheets.google.com/feeds",
               "https://www.googleapis.com/auth/spreadsheets",
@@ -111,14 +142,30 @@ def get_real_btc_price():
          return 65000
 
 def predict_next_day_price(model, scaler, recent_prices, look_back=60):
-     last_sequence = scaler.transform(recent_prices[-look_back:].values.reshape(-1,1))
-     X_test = np.array([last_sequence.flatten()]).reshape(1, look_back, 1)
-     prediction = model.predict(X_test)
-     return scaler.inverse_transform(prediction)[0][0]
+     if model is None:
+         # Mock prediction when model is not available
+         current_price = recent_prices.iloc[-1]
+         # Simple mock: add small random variation
+         import random
+         variation = random.uniform(-0.05, 0.05)  # ±5% variation
+         return current_price * (1 + variation)
+     
+     try:
+         last_sequence = scaler.transform(recent_prices[-look_back:].values.reshape(-1,1))
+         X_test = np.array([last_sequence.flatten()]).reshape(1, look_back, 1)
+         prediction = model.predict(X_test)
+         return scaler.inverse_transform(prediction)[0][0]
+     except Exception as e:
+         print(f"⚠️ Prediction error: {e} - using mock prediction")
+         current_price = recent_prices.iloc[-1]
+         import random
+         variation = random.uniform(-0.05, 0.05)
+         return current_price * (1 + variation)
 
 def run_bot():
      # Download model from GitHub if needed
      model_downloaded = download_model_from_github()
+     scaler_downloaded = download_scaler_from_github()
 
      # Handle missing model files gracefully
      try:
@@ -132,8 +179,18 @@ def run_bot():
          model = None
          print(f"⚠️ Model file error: {e} - using mock predictions")
 
-     with open(SCALER_PATH, "rb") as f:
-         scaler = pickle.load(f)
+     # Handle missing scaler file gracefully
+     try:
+         if scaler_downloaded and os.path.exists(SCALER_PATH):
+             with open(SCALER_PATH, "rb") as f:
+                 scaler = pickle.load(f)
+             print("✅ Scaler loaded successfully!")
+         else:
+             scaler = create_mock_scaler()
+             print("⚠️ Using mock scaler - predictions may be inaccurate")
+     except Exception as e:
+         scaler = create_mock_scaler()
+         print(f"⚠️ Scaler file error: {e} - using mock scaler")
      look_back = 60
      sheet = setup_google_sheets(JSON_KEYFILE, os.getenv("GOOGLE_SHEET_ID"))
      add_headers_if_needed(sheet)
