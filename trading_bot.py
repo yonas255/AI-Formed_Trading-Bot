@@ -289,6 +289,10 @@ def test():
      <p><a href="/">← Back to Dashboard</a></p>
      """
 
+@app.route("/health")
+def health():
+     return "OK", 200
+
 @app.route("/")
 def home():
      return """
