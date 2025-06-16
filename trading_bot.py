@@ -281,14 +281,34 @@ def manual_download():
      else:
          return "❌ Failed to download model. Please check the GitHub URL. <a href='/status'>Check Status</a>"
 
+@app.route("/test")
+def test():
+     return """
+     <h1>✅ Flask App is Working!</h1>
+     <p>If you can see this page, your Flask app is running correctly.</p>
+     <p><a href="/">← Back to Dashboard</a></p>
+     """
+
 @app.route("/")
+def home():
+     return """
+     <h1>🚀 Crypto Trading Bot Dashboard</h1>
+     <p>Welcome to the Crypto Trading Bot!</p>
+     <p><a href="/status">📊 Check Bot Status</a></p>
+     <p><a href="/start-bot">🚀 Start Trading Bot</a></p>
+     <p><a href="/download-model">📥 Download Model</a></p>
+     <hr>
+     <p><em>Use the links above to manage your trading bot.</em></p>
+     """
+
+@app.route("/start-bot")
 def trigger_bot():
      threading.Thread(target=run_bot).start()
      return """
      <h1>🚀 Crypto Trading Bot</h1>
      <p>✅ Bot has been started successfully!</p>
      <p><a href="/status">Check Bot Status</a></p>
-     <p><a href="/download-model">Download Model</a></p>
+     <p><a href="/">← Back to Dashboard</a></p>
      <hr>
      <p><em>Bot is now running in the background and will complete 6 trading cycles.</em></p>
      """
