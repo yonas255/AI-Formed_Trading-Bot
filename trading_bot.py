@@ -37,7 +37,7 @@ def download_model_from_github():
         print("📥 Downloading LSTM model from GitHub...")
         try:
             # Replace with your actual GitHub raw file URL
-            model_url = "https://github.com/yonas255/bot-files/raw/d85a362794a87a4ce0050f9e145664159b107da9/btc_lstm_model.h5
+            model_url = "https://github.com/yonas255/bot-files/raw/d85a362794a87a4ce0050f9e145664159b107da9/btc_lstm_model.h5"
             response = requests.get(model_url, stream=True)
             response.raise_for_status()
 
