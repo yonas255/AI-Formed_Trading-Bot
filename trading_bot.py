@@ -293,6 +293,10 @@ def test():
 def health():
      return "OK", 200
 
+@app.route("/simple")
+def simple():
+     return "Flask is working! This is a simple text response."
+
 @app.route("/")
 def home():
      return """
