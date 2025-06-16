@@ -1,0 +1,12 @@
+flask
+vaderSentiment
+gspread
+oauth2client
+requests
+pandas
+matplotlib
+scikit-learn
+python-dotenv
+praw
+sendgrid
+numpy
