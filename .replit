@@ -1,16 +1,15 @@
-run = "python3 trading_bot.py"
+entrypoint = "main.py"
 modules = ["python-3.11"]
-
-[interpreter]
-command = ["python3", "trading_bot.py"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "pip", "pkg-config", "python311", "python312Packages.pip", "qhull", "tcl", "tk"]
 
 [unitTest]
 language = "python3"
 
-[[ports]]
-localPort = 3000
-externalPort = 80
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix"]
+
+[deployment]
+run = ["python3", "main.py"]
+deploymentTarget = "cloudrun"
