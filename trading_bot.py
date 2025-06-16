@@ -149,7 +149,7 @@ def predict_next_day_price(model, scaler, recent_prices, look_back=60):
          import random
          variation = random.uniform(-0.05, 0.05)  # ±5% variation
          return current_price * (1 + variation)
-     
+
      try:
          last_sequence = scaler.transform(recent_prices[-look_back:].values.reshape(-1,1))
          X_test = np.array([last_sequence.flatten()]).reshape(1, look_back, 1)
