@@ -8,6 +8,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
+try:
+    from tensorflow.keras.models import load_model
+except ImportError:
+    print("TensorFlow not installed - using mock prediction")
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
@@ -25,7 +29,29 @@ print("🔍 Reddit Client ID:", os.getenv("REDDIT_CLIENT_ID"))
 
 MODEL_PATH = "btc_lstm_model.h5"
 SCALER_PATH = "scaler.pkl"
-JSON_KEYFILE = "credentials.json"
+JSON_KEYFILE = "credintial.json"
+
+def download_model_from_github():
+    """Download the LSTM model file from GitHub if it doesn't exist locally."""
+    if not os.path.exists(MODEL_PATH):
+        print("📥 Downloading LSTM model from GitHub...")
+        try:
+            # Replace with your actual GitHub raw file URL
+            model_url = "https://raw.githubusercontent.com/yourusername/yourrepo/main/btc_lstm_model.h5"
+            response = requests.get(model_url, stream=True)
+            response.raise_for_status()
+
+            with open(MODEL_PATH, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print("✅ Model downloaded successfully!")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to download model: {e}")
+            return False
+    else:
+        print("✅ Model file already exists locally")
+        return True
 
 def setup_google_sheets(json_keyfile_path, sheet_id, worksheet_name="Sheet1"):
      scope = ["https://spreadsheets.google.com/feeds",
@@ -91,7 +117,21 @@ def predict_next_day_price(model, scaler, recent_prices, look_back=60):
      return scaler.inverse_transform(prediction)[0][0]
 
 def run_bot():
-     model = load_model(MODEL_PATH)
+     # Download model from GitHub if needed
+     model_downloaded = download_model_from_github()
+
+     # Handle missing model files gracefully
+     try:
+         if 'load_model' in globals() and model_downloaded:
+             model = load_model(MODEL_PATH)
+             print("✅ Model loaded successfully!")
+         else:
+             model = None
+             print("⚠️ TensorFlow not available - using mock predictions")
+     except Exception as e:
+         model = None
+         print(f"⚠️ Model file error: {e} - using mock predictions")
+
      with open(SCALER_PATH, "rb") as f:
          scaler = pickle.load(f)
      look_back = 60
@@ -165,6 +205,25 @@ def run_bot():
      plt.savefig("run_results_chart.png")
      print("✅ All runs completed. Chart saved as 'run_results_chart.png'")
 
+@app.route("/status")
+def status():
+     return f"""
+     <h2>Bot Status</h2>
+     <p>Reddit Client ID: {'✅ Set' if os.getenv('REDDIT_CLIENT_ID') else '❌ Missing'}</p>
+     <p>Model file: {'✅ Found' if os.path.exists(MODEL_PATH) else '❌ Missing (will download from GitHub)'}</p>
+     <p>Scaler file: {'✅ Found' if os.path.exists(SCALER_PATH) else '❌ Missing'}</p>
+     <p>Credentials: {'✅ Found' if os.path.exists(JSON_KEYFILE) else '❌ Missing'}</p>
+     <p><a href="/download-model">Download Model Manually</a></p>
+     """
+
+@app.route("/download-model")
+def manual_download():
+     success = download_model_from_github()
+     if success:
+         return "✅ Model downloaded successfully! <a href='/status'>Check Status</a>"
+     else:
+         return "❌ Failed to download model. Please check the GitHub URL. <a href='/status'>Check Status</a>"
+
 @app.route("/")
 def trigger_bot():
      threading.Thread(target=run_bot).start()
@@ -174,4 +233,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 3000))
     app.run(host="0.0.0.0", port=port)
-
