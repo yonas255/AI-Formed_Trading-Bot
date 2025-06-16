@@ -284,9 +284,16 @@ def manual_download():
 @app.route("/")
 def trigger_bot():
      threading.Thread(target=run_bot).start()
-     return "✅ Crypto bot started!", 200
+     return """
+     <h1>🚀 Crypto Trading Bot</h1>
+     <p>✅ Bot has been started successfully!</p>
+     <p><a href="/status">Check Bot Status</a></p>
+     <p><a href="/download-model">Download Model</a></p>
+     <hr>
+     <p><em>Bot is now running in the background and will complete 6 trading cycles.</em></p>
+     """
 
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
