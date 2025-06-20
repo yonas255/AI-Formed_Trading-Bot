@@ -29,4 +29,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 trading_bot.py"
+args = "python3 main.py"
