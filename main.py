@@ -28,7 +28,15 @@ def trigger_bot():
 @app.route("/run")
 def auto_trigger():
     threading.Thread(target=run_trading_bot).start()
-    return "✅ Bot triggered via /run", 200
+    return """
+    <h1>🚀 Crypto Trading Bot</h1>
+    <p>✅ Bot has been started successfully via /run endpoint!</p>
+    <p>🔄 The bot is now running 6 trading cycles in the background...</p>
+    <p>⏱️ This will take about 1 minute to complete.</p>
+    <p><a href='/status'>📊 Check Bot Status</a></p>
+    <p><a href='/'>← Back to Dashboard</a></p>
+    <p><strong>Note:</strong> Check your Google Sheets and email for trading updates!</p>
+    """
 
 @app.route("/status")
 def status():
