@@ -198,8 +198,22 @@ def run_trading_bot():
         print(f"⚠️ Scaler file error: {e} - using mock scaler")
 
     look_back = 60
-    sheet = setup_google_sheets(JSON_KEYFILE, os.getenv("GOOGLE_SHEET_ID"))
-    add_headers_if_needed(sheet)
+    
+    # Check if Google Sheet ID is configured
+    sheet_id = os.getenv("GOOGLE_SHEET_ID")
+    if not sheet_id:
+        print("❌ GOOGLE_SHEET_ID not found in environment variables!")
+        print("Please add your Google Sheet ID to the Secrets tab in Replit.")
+        return
+    
+    try:
+        sheet = setup_google_sheets(JSON_KEYFILE, sheet_id, "trading_bot_log")
+        add_headers_if_needed(sheet)
+        print("✅ Google Sheets connected successfully!")
+    except Exception as e:
+        print(f"❌ Google Sheets connection failed: {e}")
+        print("Please check your GOOGLE_SHEET_ID and make sure the sheet exists.")
+        return
 
     usd_balance = 1000.0
     btc_balance = 0.0
