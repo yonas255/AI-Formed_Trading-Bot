@@ -232,67 +232,47 @@ def run_trading_bot():
     average_buy_price = 0.0
     historical_prices = get_historical_btc_prices()
 
-    sentiment_history = []
-    predicted_history = []
-    live_price_history = []
+    # Single execution - no loop needed for cronjob
+    sentiment_score, pos, neg, neu = get_sentiment_score()
+    predicted_price = predict_next_day_price(model, scaler, historical_prices, look_back)
+    btc_price = get_real_btc_price()
 
-   
-sentiment_score, pos, neg, neu = get_sentiment_score()
-        predicted_price = predict_next_day_price(model, scaler, historical_prices, look_back)
-        btc_price = get_real_btc_price()
-
-        sentiment_history.append(sentiment_score)
-        predicted_history.append(predicted_price)
-        live_price_history.append(btc_price)
-
-        action = "HOLD"
-        if sentiment_score > 0.3 and predicted_price > btc_price * 1.01 and usd_balance >= 100:
-            action = "BUY"
-            btc_bought = 100 / btc_price
-            usd_balance -= 100
-            btc_balance += btc_bought
-            average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
-        elif sentiment_score < -0.3 and predicted_price < btc_price * 0.99 and btc_balance >= 0.001:
-            action = "SELL"
+    action = "HOLD"
+    if sentiment_score > 0.3 and predicted_price > btc_price * 1.01 and usd_balance >= 100:
+        action = "BUY"
+        btc_bought = 100 / btc_price
+        usd_balance -= 100
+        btc_balance += btc_bought
+        average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
+    elif sentiment_score < -0.3 and predicted_price < btc_price * 0.99 and btc_balance >= 0.001:
+        action = "SELL"
+        usd_gained = 0.001 * btc_price
+        btc_balance -= 0.001
+        usd_balance += usd_gained
+        if btc_balance == 0:
+            average_buy_price = 0.0
+    elif btc_balance >= 0.001:
+        if btc_price <= average_buy_price * 0.95:
+            action = "STOP-LOSS"
             usd_gained = 0.001 * btc_price
             btc_balance -= 0.001
             usd_balance += usd_gained
-            if btc_balance == 0:
-                average_buy_price = 0.0
-        elif btc_balance >= 0.001:
-            if btc_price <= average_buy_price * 0.95:
-                action = "STOP-LOSS"
-                usd_gained = 0.001 * btc_price
-                btc_balance -= 0.001
-                usd_balance += usd_gained
-            elif btc_price >= average_buy_price * 1.10:
-                action = "TAKE-PROFIT"
-                usd_gained = 0.001 * btc_price
-                btc_balance -= 0.001
-                usd_balance += usd_gained
+        elif btc_price >= average_buy_price * 1.10:
+            action = "TAKE-PROFIT"
+            usd_gained = 0.001 * btc_price
+            btc_balance -= 0.001
+            usd_balance += usd_gained
 
-        with open("sentiment_trade_log.txt", "a") as f:
-            f.write(f"{datetime.utcnow()} | Action: {action} | Sentiment: {sentiment_score:.4f} | Predicted BTC: ${predicted_price:.2f} | BTC: ${btc_price:.2f} | USD: ${usd_balance:.2f} | BTC Bal: {btc_balance:.6f}\n")
+    # Log the trade
+    with open("sentiment_trade_log.txt", "a") as f:
+        f.write(f"{datetime.utcnow()} | Action: {action} | Sentiment: {sentiment_score:.4f} | Predicted BTC: ${predicted_price:.2f} | BTC: ${btc_price:.2f} | USD: ${usd_balance:.2f} | BTC Bal: {btc_balance:.6f}\n")
 
-        log_trade_to_google_sheets(sheet, action, sentiment_score, predicted_price, btc_price, usd_balance, btc_balance)
+    log_trade_to_google_sheets(sheet, action, sentiment_score, predicted_price, btc_price, usd_balance, btc_balance)
 
-        if action in ["BUY", "SELL"]:
-            send_email_alert(
-                f"[Crypto Bot] {action} Signal",
-                f"Action: {action}\nSentiment: {sentiment_score:.4f}\nPredicted: ${predicted_price:.2f}\nBTC Now: ${btc_price:.2f}"
-            )
+    if action in ["BUY", "SELL", "STOP-LOSS", "TAKE-PROFIT"]:
+        send_email_alert(
+            f"[Crypto Bot] {action} Signal",
+            f"Action: {action}\nSentiment: {sentiment_score:.4f}\nPredicted: ${predicted_price:.2f}\nBTC Now: ${btc_price:.2f}\nUSD Balance: ${usd_balance:.2f}\nBTC Balance: {btc_balance:.6f}"
+        )
 
-        
-
-    plt.figure(figsize=(12, 6))
-    plt.plot(sentiment_history, label="Sentiment Score", marker='o')
-    plt.plot(predicted_history, label="Predicted BTC Price", linestyle='--')
-    plt.plot(live_price_history, label="Live BTC Price", linestyle='-.')
-    plt.title("Crypto Bot Sentiment & Price Predictions")
-    plt.xlabel("Run Number")
-    plt.ylabel("Value")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("run_results_chart.png")
-    print("✅ All runs completed. Chart saved as 'run_results_chart.png'")
+    print(f"✅ Trading cycle completed: {action} | Sentiment: {sentiment_score:.4f} | BTC: ${btc_price:.2f}")
