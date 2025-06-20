@@ -236,8 +236,8 @@ def run_trading_bot():
     predicted_history = []
     live_price_history = []
 
-    for run in range(6):
-        sentiment_score, pos, neg, neu = get_sentiment_score()
+   
+sentiment_score, pos, neg, neu = get_sentiment_score()
         predicted_price = predict_next_day_price(model, scaler, historical_prices, look_back)
         btc_price = get_real_btc_price()
 
@@ -282,8 +282,7 @@ def run_trading_bot():
                 f"Action: {action}\nSentiment: {sentiment_score:.4f}\nPredicted: ${predicted_price:.2f}\nBTC Now: ${btc_price:.2f}"
             )
 
-        if run < 5:
-            time.sleep(10)
+        
 
     plt.figure(figsize=(12, 6))
     plt.plot(sentiment_history, label="Sentiment Score", marker='o')
