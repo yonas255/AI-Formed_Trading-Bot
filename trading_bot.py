@@ -78,7 +78,19 @@ def setup_google_sheets(json_keyfile_path, sheet_id, worksheet_name="Sheet1"):
     ]
     creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile_path, scope)
     client = gspread.authorize(creds)
-    return client.open_by_key(sheet_id).worksheet(worksheet_name)
+    
+    # Try to access the worksheet, if it doesn't exist, create it
+    try:
+        sheet = client.open_by_key(sheet_id)
+        try:
+            worksheet = sheet.worksheet(worksheet_name)
+        except gspread.WorksheetNotFound:
+            print(f"Worksheet '{worksheet_name}' not found, creating it...")
+            worksheet = sheet.add_worksheet(title=worksheet_name, rows=1000, cols=10)
+        return worksheet
+    except Exception as e:
+        print(f"Error accessing Google Sheet: {e}")
+        raise
 
 def add_headers_if_needed(sheet):
     if not sheet.row_values(1):
