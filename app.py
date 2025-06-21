@@ -590,39 +590,49 @@ DASHBOARD_TEMPLATE = """
 
         // WebSocket initialization
         function initWebSocket() {
-            socket = io();
-            
-            socket.on('connect', function() {
-                console.log('Connected to server');
-                document.getElementById('botStatus').textContent = 'Connected';
-            });
+            try {
+                socket = io();
+                
+                socket.on('connect', function() {
+                    console.log('Connected to server');
+                    const statusEl = document.getElementById('botStatus');
+                    if (statusEl) statusEl.textContent = 'Connected';
+                });
 
-            socket.on('price_update', function(data) {
-                updatePriceDisplay(data);
-                updateChart(data);
-            });
+                socket.on('price_update', function(data) {
+                    updatePriceDisplay(data);
+                    updateChart(data);
+                });
 
-            socket.on('sentiment_update', function(data) {
-                updateSentimentDisplay(data);
-            });
+                socket.on('sentiment_update', function(data) {
+                    updateSentimentDisplay(data);
+                });
 
-            socket.on('portfolio_update', function(data) {
-                updatePortfolioDisplay(data);
-            });
+                socket.on('portfolio_update', function(data) {
+                    updatePortfolioDisplay(data);
+                });
 
-            socket.on('trade_alert', function(data) {
-                updateTradingLog(data);
-                showTradeNotification(data);
-            });
+                socket.on('trade_alert', function(data) {
+                    updateTradingLog(data);
+                    showTradeNotification(data);
+                });
 
-            socket.on('technical_analysis', function(data) {
-                updateTechnicalIndicators(data);
-            });
+                socket.on('technical_analysis', function(data) {
+                    updateTechnicalIndicators(data);
+                });
+            } catch (error) {
+                console.log('WebSocket connection error:', error);
+            }
         }
 
         // Chart initialization
         function initChart() {
-            const ctx = document.getElementById('priceChart').getContext('2d');
+            const chartElement = document.getElementById('priceChart');
+            if (!chartElement) {
+                console.log('Chart element not found');
+                return;
+            }
+            const ctx = chartElement.getContext('2d');
 
             priceChart = new Chart(ctx, {
                 type: 'line',
@@ -824,7 +834,7 @@ DASHBOARD_TEMPLATE = """
         }
 
         // Crypto selection
-        function selectCrypto(crypto, symbol) {
+        window.selectCrypto = function(crypto, symbol) {
             currentCrypto = crypto;
             currentSymbol = symbol;
             
@@ -833,7 +843,9 @@ DASHBOARD_TEMPLATE = """
             event.target.classList.add('active');
             
             // Request new data
-            socket.emit('request_initial_data', {crypto: currentCrypto});
+            if (socket) {
+                socket.emit('request_initial_data', {crypto: currentCrypto});
+            }
             
             // Update chart label
             if (priceChart) {
@@ -843,10 +855,11 @@ DASHBOARD_TEMPLATE = """
         }
 
         // Theme toggle
-        function toggleTheme() {
+        window.toggleTheme = function() {
             isDarkTheme = !isDarkTheme;
             document.body.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
-            document.querySelector('.theme-toggle').textContent = isDarkTheme ? '☀️' : '🌙';
+            const themeBtn = document.querySelector('.theme-toggle');
+            if (themeBtn) themeBtn.textContent = isDarkTheme ? '☀️' : '🌙';
             
             if (priceChart) {
                 priceChart.options.plugins.legend.labels.color = isDarkTheme ? '#e2e8f0' : '#333';

@@ -20,10 +20,19 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Run Trading Bot"
+runButton = "Enhanced Trading Bot"
 
 [[workflows.workflow]]
 name = "Run Trading Bot"
+author = 43408884
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 app.py"
+
+[[workflows.workflow]]
+name = "Enhanced Trading Bot"
 author = 43408884
 mode = "sequential"
 
