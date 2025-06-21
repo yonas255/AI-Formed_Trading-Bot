@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template_string, send_file, jsonify
 import threading
 import os
@@ -21,7 +20,7 @@ DASHBOARD_TEMPLATE = """
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -29,39 +28,39 @@ DASHBOARD_TEMPLATE = """
             padding: 15px;
             line-height: 1.6;
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
         }
-        
+
         .header {
             text-align: center;
             color: white;
             margin-bottom: 30px;
             padding: 20px 0;
         }
-        
+
         .header h1 {
             font-size: clamp(2rem, 5vw, 3rem);
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             font-weight: 700;
         }
-        
+
         .header p {
             font-size: clamp(1rem, 3vw, 1.2rem);
             opacity: 0.9;
             margin: 0 10px;
         }
-        
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 15px;
             margin-bottom: 30px;
         }
-        
+
         .card {
             background: rgba(255, 255, 255, 0.95);
             padding: 20px;
@@ -71,12 +70,12 @@ DASHBOARD_TEMPLATE = """
             border: 1px solid rgba(255, 255, 255, 0.2);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-        
+
         .card:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
-        
+
         .card h3 {
             color: #333;
             margin-bottom: 15px;
@@ -86,7 +85,7 @@ DASHBOARD_TEMPLATE = """
             gap: 8px;
             font-weight: 600;
         }
-        
+
         .button {
             display: inline-block;
             background: linear-gradient(45deg, #667eea, #764ba2);
@@ -106,26 +105,26 @@ DASHBOARD_TEMPLATE = """
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
-        
+
         .button:hover, .button:focus {
             transform: translateY(-2px);
             box-shadow: 0 5px 18px rgba(0, 0, 0, 0.3);
             outline: none;
         }
-        
+
         .button:active {
             transform: translateY(0px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
-        
+
         .button.danger {
             background: linear-gradient(45deg, #ff6b6b, #ee5a24);
         }
-        
+
         .button.success {
             background: linear-gradient(45deg, #4ecdc4, #44a08d);
         }
-        
+
         .status-indicator {
             display: inline-block;
             width: 12px;
@@ -134,48 +133,48 @@ DASHBOARD_TEMPLATE = """
             margin-right: 8px;
             flex-shrink: 0;
         }
-        
+
         .status-online {
             background: #2ecc71;
             animation: pulse 2s infinite;
         }
-        
+
         .status-offline {
             background: #e74c3c;
         }
-        
+
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
-        
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 10px;
             margin: 15px 0;
         }
-        
+
         .stat-item {
             background: rgba(255, 255, 255, 0.1);
             padding: 12px;
             border-radius: 8px;
             text-align: center;
         }
-        
+
         .stat-value {
             font-size: clamp(1.1rem, 3vw, 1.3rem);
             font-weight: bold;
             color: #333;
         }
-        
+
         .stat-label {
             font-size: clamp(0.8rem, 2vw, 0.9rem);
             color: #666;
             margin-top: 3px;
         }
-        
+
         .footer {
             text-align: center;
             color: white;
@@ -184,7 +183,7 @@ DASHBOARD_TEMPLATE = """
             font-size: clamp(0.8rem, 2vw, 0.9rem);
             padding: 15px;
         }
-        
+
         .alert {
             background: rgba(255, 193, 7, 0.1);
             border: 1px solid #ffc107;
@@ -194,7 +193,7 @@ DASHBOARD_TEMPLATE = """
             margin: 15px 0;
             font-size: clamp(0.85rem, 2vw, 0.95rem);
         }
-        
+
         .log-preview {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -207,29 +206,29 @@ DASHBOARD_TEMPLATE = """
             margin: 10px 0;
             line-height: 1.4;
         }
-        
+
         /* Mobile-specific optimizations */
         @media screen and (max-width: 768px) {
             body {
                 padding: 10px;
             }
-            
+
             .header {
                 margin-bottom: 20px;
                 padding: 10px 0;
             }
-            
+
             .dashboard-grid {
                 grid-template-columns: 1fr;
                 gap: 12px;
                 margin-bottom: 20px;
             }
-            
+
             .card {
                 padding: 15px;
                 border-radius: 12px;
             }
-            
+
             .button {
                 padding: 12px 16px;
                 margin: 5px 2px;
@@ -238,77 +237,77 @@ DASHBOARD_TEMPLATE = """
                 text-align: center;
                 font-size: 0.9rem;
             }
-            
+
             .footer {
                 margin-top: 20px;
                 padding: 10px;
             }
-            
+
             .alert {
                 padding: 10px;
                 margin: 10px 0;
             }
         }
-        
+
         @media screen and (max-width: 480px) {
             .button {
                 width: 100%;
                 margin: 4px 0;
                 padding: 14px 12px;
             }
-            
+
             .card h3 {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 5px;
             }
-            
+
             .stats-grid {
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
             }
-            
+
             .stat-item {
                 padding: 10px;
             }
         }
-        
+
         /* Touch-friendly improvements */
         @media (hover: none) and (pointer: coarse) {
             .button:hover {
                 transform: none;
             }
-            
+
             .card:hover {
                 transform: none;
             }
-            
+
             .button {
                 padding: 16px 20px;
             }
         }
-        
+
         /* Landscape phone optimization */
         @media screen and (max-height: 500px) and (orientation: landscape) {
             .header h1 {
                 font-size: 2rem;
                 margin-bottom: 5px;
             }
-            
+
             .header p {
                 font-size: 1rem;
             }
-            
+
             .header {
                 margin-bottom: 15px;
                 padding: 5px 0;
             }
-            
+
             .card {
                 padding: 12px;
             }
         }
-        
+
         /* High DPI displays */
         @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
             .button {
@@ -323,7 +322,7 @@ DASHBOARD_TEMPLATE = """
             <h1>🚀 Crypto Trading Bot</h1>
             <p>AI-Powered Bitcoin Trading with Sentiment Analysis</p>
         </div>
-        
+
         <div class="dashboard-grid">
             <div class="card">
                 <h3>🎮 Bot Controls</h3>
@@ -336,7 +335,7 @@ DASHBOARD_TEMPLATE = """
                 <a class="button danger" href="{{ url_for('stop_bot') }}">🛑 Stop Bot</a>
                 <a class="button" href="{{ url_for('run_once') }}">⚡ Run Once</a>
             </div>
-            
+
             <div class="card">
                 <h3>📊 Monitoring</h3>
                 <a class="button" href="{{ url_for('status') }}">📈 Bot Status</a>
@@ -344,7 +343,7 @@ DASHBOARD_TEMPLATE = """
                 <a class="button" href="{{ url_for('download_log') }}">📝 Download Logs</a>
                 <a class="button" href="https://docs.google.com/spreadsheets/d/1whYmmYjQTddVyLiHJxuQl_95rXQPC2yvlrq5yP32JFo/edit" target="_blank">📋 Google Sheet</a>
             </div>
-            
+
             <div class="card">
                 <h3>🔧 Configuration</h3>
                 <a class="button" href="{{ url_for('download_model') }}">📥 Download Model</a>
@@ -352,11 +351,116 @@ DASHBOARD_TEMPLATE = """
                 <a class="button" href="{{ url_for('health') }}">💚 Health Check</a>
             </div>
         </div>
-        
+
         <div class="footer">
             <p>Built with ❤️ using Flask & AI | Last Updated: {{ current_time }}</p>
         </div>
     </div>
+
+    <script>
+        // Chart.js configuration
+        let isDarkTheme = false;
+        let btcChart;
+
+        // Initialize chart when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart();
+            // Update chart every 30 seconds
+            setInterval(updateChart, 30000);
+        });
+
+        function initChart() {
+            const ctx = document.getElementById('btcChart').getContext('2d');
+
+            btcChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Bitcoin Price (USD)',
+                        data: [],
+                        borderColor: isDarkTheme ? '#4ecdc4' : '#667eea',
+                        backgroundColor: isDarkTheme ? 'rgba(78, 205, 196, 0.1)' : 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Price: $' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateChart();
+        }
+
+        async function updateChart() {
+            try {
+                // Fetch recent BTC prices
+                const response = await fetch('/api/btc-prices');
+                const data = await response.json();
+
+                btcChart.data.labels = data.labels;
+                btcChart.data.datasets[0].data = data.prices;
+                btcChart.update();
+
+                // Update current price display
+                if (data.current_price) {
+                    updatePriceDisplay(data.current_price);
+                }
+            } catch (error) {
+                console.error('Failed to update chart:', error);
+            }
+        }
+
+        function updatePriceDisplay(price) {
+            const priceElements = document.querySelectorAll('.btc-price-display');
+            priceElements.forEach(el => {
+                el.textContent = '$' + price.toLocaleString();
+            });
+        }
+
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            document.body.classList.toggle('dark-theme');
+
+            // Update chart colors
+            if (btcChart) {
+                btcChart.data.datasets[0].borderColor = isDarkTheme ? '#4ecdc4' : '#667eea';
+                btcChart.data.datasets[0].backgroundColor = isDarkTheme ? 'rgba(78, 205, 196, 0.1)' : 'rgba(102, 126, 234, 0.1)';
+                btcChart.update();
+            }
+        }
+
+        // WebSocket for real-time updates (will implement next)
+        function initWebSocket() {
+            // Real-time price updates coming soon
+        }
+    </script>
 </body>
 </html>
 """
@@ -384,7 +488,7 @@ def start_bot():
     else:
         message = "⚠️ Bot is already running!"
         status_class = "warning"
-    
+
     return f"""
     <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
         <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
@@ -418,26 +522,26 @@ def run_once():
     # Store results in a global variable to display them
     global last_run_results
     last_run_results = {}
-    
+
     def run_with_results():
         global last_run_results
         try:
             last_run_results = run_trading_bot_with_results()
         except Exception as e:
             last_run_results = {"error": str(e)}
-    
+
     threading.Thread(target=run_with_results).start()
-    
+
     # Wait longer for the results (sentiment analysis takes time)
     import time
     max_wait = 30  # Wait up to 30 seconds
     wait_interval = 1
     waited = 0
-    
+
     while waited < max_wait and not last_run_results:
         time.sleep(wait_interval)
         waited += wait_interval
-    
+
     if "error" in last_run_results:
         return f"""
         <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
@@ -448,7 +552,7 @@ def run_once():
             </div>
         </div>
         """
-    
+
     results = last_run_results
     if not results:
         return """
@@ -461,14 +565,14 @@ def run_once():
             </div>
         </div>
         """
-    
+
     return f"""
     <div style="padding: 20px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
         <div style="background: white; padding: 40px; border-radius: 20px; max-width: 900px; margin: 0 auto;">
             <h2 style="text-align: center; color: #333;">⚡ Trading Bot Results</h2>
-            
+
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 30px 0;">
-                
+
                 <div style="background: linear-gradient(45deg, #4ecdc4, #44a08d); color: white; padding: 25px; border-radius: 15px;">
                     <h3 style="margin: 0 0 15px 0;">📊 Sentiment Analysis</h3>
                     <p style="margin: 5px 0; font-size: 16px;">
@@ -480,7 +584,7 @@ def run_once():
                         📈 Score: {results.get('sentiment_score', 0):.4f}
                     </p>
                 </div>
-                
+
                 <div style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 25px; border-radius: 15px;">
                     <h3 style="margin: 0 0 15px 0;">🔮 Price Prediction</h3>
                     <p style="margin: 5px 0; font-size: 18px;">
@@ -492,7 +596,7 @@ def run_once():
                         ${results.get('btc_price', 0):,.2f}
                     </p>
                 </div>
-                
+
                 <div style="background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; padding: 25px; border-radius: 15px;">
                     <h3 style="margin: 0 0 15px 0;">📢 Trading Decision</h3>
                     <p style="margin: 5px 0; font-size: 24px; font-weight: bold;">
@@ -502,7 +606,7 @@ def run_once():
                         Email: {'✅ Sent' if results.get('email_sent', False) else '❌ Not sent'}
                     </p>
                 </div>
-                
+
                 <div style="background: linear-gradient(45deg, #2ecc71, #27ae60); color: white; padding: 25px; border-radius: 15px;">
                     <h3 style="margin: 0 0 15px 0;">💰 Portfolio Status</h3>
                     <p style="margin: 5px 0; font-size: 16px;">
@@ -514,9 +618,9 @@ def run_once():
                         {results.get('btc_balance', 0):.6f} BTC
                     </p>
                 </div>
-                
+
             </div>
-            
+
             <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
                 <h4 style="color: #333; margin: 0 0 10px 0;">📋 Summary</h4>
                 <p style="color: #666; margin: 0; line-height: 1.6;">
@@ -526,7 +630,7 @@ def run_once():
                     {'Email alert was sent to notify you of this action.' if results.get('email_sent', False) else 'No email alert was necessary for this action.'}
                 </p>
             </div>
-            
+
             <div style="text-align: center; margin-top: 30px;">
                 <a href="/" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">← Back to Dashboard</a>
                 <a href="/status" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">📊 System Status</a>
@@ -539,7 +643,7 @@ def run_once():
 @app.route("/status")
 def status():
     from os import path, getenv
-    
+
     checks = {
         "Reddit API": "✅ Connected" if getenv('REDDIT_CLIENT_ID') else "❌ Missing Client ID",
         "AI Model": "✅ Ready" if path.exists('btc_lstm_model.h5') else "❌ Missing Model",
@@ -548,7 +652,7 @@ def status():
         "Google Sheet ID": "✅ Configured" if getenv('GOOGLE_SHEET_ID') else "❌ Not Set",
         "Log File": "✅ Active" if path.exists('sentiment_trade_log.txt') else "📝 Not Started"
     }
-    
+
     return f"""
     <div style="padding: 20px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
         <div style="background: white; padding: 40px; border-radius: 20px; max-width: 800px; margin: 0 auto;">
@@ -578,14 +682,14 @@ def test_connections():
         results.append("✅ Reddit API: Connected")
     except:
         results.append("❌ Reddit API: Failed")
-    
+
     try:
         from trading_bot import setup_google_sheets
         sheet = setup_google_sheets("credintial.json", os.getenv('GOOGLE_SHEET_ID'), "trading_bot_log")
         results.append("✅ Google Sheets: Connected")
     except:
         results.append("❌ Google Sheets: Failed")
-    
+
     return f"""
     <div style="padding: 20px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
         <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
@@ -647,7 +751,7 @@ def view_latest_results():
             </div>
         </div>
         """
-    
+
     # Redirect to the same results display as run-once
     return run_once()
 
@@ -669,11 +773,11 @@ def run_trading_bot_with_results():
     )
     import pickle
     import numpy as np
-    
+
     # Download required files
     model_downloaded = download_model_from_github()
     scaler_downloaded = download_scaler_from_github()
-    
+
     # Load model and scaler
     try:
         if 'load_model' in globals() and model_downloaded:
@@ -683,7 +787,7 @@ def run_trading_bot_with_results():
             model = None
     except:
         model = None
-    
+
     try:
         if scaler_downloaded and os.path.exists("scaler.pkl"):
             with open("scaler.pkl", "rb") as f:
@@ -698,31 +802,31 @@ def run_trading_bot_with_results():
         scaler = MinMaxScaler()
         dummy_data = np.array([[30000], [70000]])
         scaler.fit(dummy_data)
-    
+
     # Setup Google Sheets
     sheet_id = os.getenv("GOOGLE_SHEET_ID")
     if not sheet_id:
         raise Exception("GOOGLE_SHEET_ID not found in environment variables!")
-    
+
     sheet = setup_google_sheets("credintial.json", sheet_id, "trading_bot_log")
     add_headers_if_needed(sheet)
-    
+
     # Get sentiment analysis
     sentiment_score, pos, neg, neu = get_sentiment_score()
     total_posts = pos + neg + neu
-    
+
     # Get price data and make prediction
     historical_prices = get_historical_btc_prices()
     predicted_price = predict_next_day_price(model, scaler, historical_prices, 60)
     btc_price = get_real_btc_price()
-    
+
     # Trading logic
     usd_balance = 1000.0
     btc_balance = 0.0
     average_buy_price = 0.0
     action = "HOLD"
     email_sent = False
-    
+
     if sentiment_score > 0.3 and predicted_price > btc_price * 1.01 and usd_balance >= 100:
         action = "BUY"
         btc_bought = 100 / btc_price
@@ -747,13 +851,13 @@ def run_trading_bot_with_results():
             usd_gained = 0.001 * btc_price
             btc_balance -= 0.001
             usd_balance += usd_gained
-    
+
     # Log to file and Google Sheets
     with open("sentiment_trade_log.txt", "a") as f:
         f.write(f"{datetime.now()} | Action: {action} | Sentiment: {sentiment_score:.4f} | Predicted BTC: ${predicted_price:.2f} | BTC: ${btc_price:.2f} | USD: ${usd_balance:.2f} | BTC Bal: {btc_balance:.6f}\n")
-    
+
     log_trade_to_google_sheets(sheet, action, sentiment_score, predicted_price, btc_price, usd_balance, btc_balance)
-    
+
     # Send email for significant actions
     if action in ["BUY", "SELL", "STOP-LOSS", "TAKE-PROFIT"]:
         try:
@@ -764,7 +868,7 @@ def run_trading_bot_with_results():
             email_sent = True
         except:
             email_sent = False
-    
+
     # Return detailed results
     return {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
