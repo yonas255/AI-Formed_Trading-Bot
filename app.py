@@ -428,9 +428,15 @@ def run_once():
     
     threading.Thread(target=run_with_results).start()
     
-    # Wait a moment for the results
+    # Wait longer for the results (sentiment analysis takes time)
     import time
-    time.sleep(3)
+    max_wait = 30  # Wait up to 30 seconds
+    wait_interval = 1
+    waited = 0
+    
+    while waited < max_wait and not last_run_results:
+        time.sleep(wait_interval)
+        waited += wait_interval
     
     if "error" in last_run_results:
         return f"""
