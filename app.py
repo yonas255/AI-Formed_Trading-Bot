@@ -364,6 +364,7 @@ DASHBOARD_TEMPLATE = """
 # Global bot state
 bot_running = False
 bot_thread = None
+last_run_results = {}
 
 @app.route("/")
 def home():
@@ -414,13 +415,117 @@ def stop_bot():
 
 @app.route("/run-once")
 def run_once():
-    threading.Thread(target=run_trading_bot).start()
-    return """
-    <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
-        <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
-            <h2>⚡ Single Run Executed</h2>
-            <p>✅ Bot executed one trading cycle successfully!</p>
-            <a href="/" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">← Back to Dashboard</a>
+    # Store results in a global variable to display them
+    global last_run_results
+    last_run_results = {}
+    
+    def run_with_results():
+        global last_run_results
+        try:
+            last_run_results = run_trading_bot_with_results()
+        except Exception as e:
+            last_run_results = {"error": str(e)}
+    
+    threading.Thread(target=run_with_results).start()
+    
+    # Wait a moment for the results
+    import time
+    time.sleep(3)
+    
+    if "error" in last_run_results:
+        return f"""
+        <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 20px; max-width: 800px; margin: 0 auto;">
+                <h2>❌ Run Failed</h2>
+                <p style="color: red;">Error: {last_run_results['error']}</p>
+                <a href="/" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">← Back to Dashboard</a>
+            </div>
+        </div>
+        """
+    
+    results = last_run_results
+    if not results:
+        return """
+        <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
+                <h2>⚡ Bot is Running...</h2>
+                <p>✅ Bot execution started! Results will be ready in a moment.</p>
+                <a href="/results" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">📊 View Results</a>
+                <a href="/" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">← Back to Dashboard</a>
+            </div>
+        </div>
+        """
+    
+    return f"""
+    <div style="padding: 20px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+        <div style="background: white; padding: 40px; border-radius: 20px; max-width: 900px; margin: 0 auto;">
+            <h2 style="text-align: center; color: #333;">⚡ Trading Bot Results</h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 30px 0;">
+                
+                <div style="background: linear-gradient(45deg, #4ecdc4, #44a08d); color: white; padding: 25px; border-radius: 15px;">
+                    <h3 style="margin: 0 0 15px 0;">📊 Sentiment Analysis</h3>
+                    <p style="margin: 5px 0; font-size: 16px;">
+                        <strong>Positive:</strong> {results.get('pos_count', 0)}<br>
+                        <strong>Negative:</strong> {results.get('neg_count', 0)}<br>
+                        <strong>Neutral:</strong> {results.get('neu_count', 0)}
+                    </p>
+                    <p style="margin: 15px 0 0 0; font-size: 18px; font-weight: bold;">
+                        📈 Score: {results.get('sentiment_score', 0):.4f}
+                    </p>
+                </div>
+                
+                <div style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 25px; border-radius: 15px;">
+                    <h3 style="margin: 0 0 15px 0;">🔮 Price Prediction</h3>
+                    <p style="margin: 5px 0; font-size: 18px;">
+                        <strong>Predicted:</strong><br>
+                        ${results.get('predicted_price', 0):,.2f}
+                    </p>
+                    <p style="margin: 15px 0 0 0; font-size: 18px;">
+                        <strong>Current:</strong><br>
+                        ${results.get('btc_price', 0):,.2f}
+                    </p>
+                </div>
+                
+                <div style="background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; padding: 25px; border-radius: 15px;">
+                    <h3 style="margin: 0 0 15px 0;">📢 Trading Decision</h3>
+                    <p style="margin: 5px 0; font-size: 24px; font-weight: bold;">
+                        {results.get('action', 'UNKNOWN')}
+                    </p>
+                    <p style="margin: 15px 0 0 0; font-size: 16px;">
+                        Email: {'✅ Sent' if results.get('email_sent', False) else '❌ Not sent'}
+                    </p>
+                </div>
+                
+                <div style="background: linear-gradient(45deg, #2ecc71, #27ae60); color: white; padding: 25px; border-radius: 15px;">
+                    <h3 style="margin: 0 0 15px 0;">💰 Portfolio Status</h3>
+                    <p style="margin: 5px 0; font-size: 16px;">
+                        <strong>USD Balance:</strong><br>
+                        ${results.get('usd_balance', 0):,.2f}
+                    </p>
+                    <p style="margin: 15px 0 0 0; font-size: 16px;">
+                        <strong>BTC Balance:</strong><br>
+                        {results.get('btc_balance', 0):.6f} BTC
+                    </p>
+                </div>
+                
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h4 style="color: #333; margin: 0 0 10px 0;">📋 Summary</h4>
+                <p style="color: #666; margin: 0; line-height: 1.6;">
+                    Analysis completed at {results.get('timestamp', 'Unknown time')}. 
+                    The bot analyzed sentiment from {results.get('total_posts', 'multiple')} Reddit posts across 5 crypto subreddits, 
+                    made an AI-powered price prediction, and executed a <strong>{results.get('action', 'UNKNOWN')}</strong> decision.
+                    {'Email alert was sent to notify you of this action.' if results.get('email_sent', False) else 'No email alert was necessary for this action.'}
+                </p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="/" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">← Back to Dashboard</a>
+                <a href="/status" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">📊 System Status</a>
+                <a href="https://docs.google.com/spreadsheets/d/1whYmmYjQTddVyLiHJxuQl_95rXQPC2yvlrq5yP32JFo/edit" target="_blank" style="background: #764ba2; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">📋 View Google Sheet</a>
+            </div>
         </div>
     </div>
     """
@@ -522,6 +627,24 @@ def health():
         "timestamp": datetime.now().isoformat()
     }), 200
 
+@app.route("/results")
+def view_latest_results():
+    global last_run_results
+    if not last_run_results:
+        return """
+        <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
+                <h2>📊 No Results Yet</h2>
+                <p>Run the bot first to see detailed results!</p>
+                <a href="/run-once" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">⚡ Run Bot Once</a>
+                <a href="/" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">← Back to Dashboard</a>
+            </div>
+        </div>
+        """
+    
+    # Redirect to the same results display as run-once
+    return run_once()
+
 def run_trading_bot_wrapper():
     """Wrapper to handle bot state"""
     global bot_running
@@ -529,6 +652,128 @@ def run_trading_bot_wrapper():
         run_trading_bot()
     finally:
         bot_running = False
+
+def run_trading_bot_with_results():
+    """Enhanced version that returns detailed results"""
+    from trading_bot import (
+        download_model_from_github, download_scaler_from_github,
+        get_sentiment_score, get_historical_btc_prices, get_real_btc_price,
+        predict_next_day_price, setup_google_sheets, add_headers_if_needed,
+        log_trade_to_google_sheets, send_email_alert
+    )
+    import pickle
+    import numpy as np
+    
+    # Download required files
+    model_downloaded = download_model_from_github()
+    scaler_downloaded = download_scaler_from_github()
+    
+    # Load model and scaler
+    try:
+        if 'load_model' in globals() and model_downloaded:
+            from tensorflow.keras.models import load_model
+            model = load_model("btc_lstm_model.h5")
+        else:
+            model = None
+    except:
+        model = None
+    
+    try:
+        if scaler_downloaded and os.path.exists("scaler.pkl"):
+            with open("scaler.pkl", "rb") as f:
+                scaler = pickle.load(f)
+        else:
+            from sklearn.preprocessing import MinMaxScaler
+            scaler = MinMaxScaler()
+            dummy_data = np.array([[30000], [70000]])
+            scaler.fit(dummy_data)
+    except:
+        from sklearn.preprocessing import MinMaxScaler
+        scaler = MinMaxScaler()
+        dummy_data = np.array([[30000], [70000]])
+        scaler.fit(dummy_data)
+    
+    # Setup Google Sheets
+    sheet_id = os.getenv("GOOGLE_SHEET_ID")
+    if not sheet_id:
+        raise Exception("GOOGLE_SHEET_ID not found in environment variables!")
+    
+    sheet = setup_google_sheets("credintial.json", sheet_id, "trading_bot_log")
+    add_headers_if_needed(sheet)
+    
+    # Get sentiment analysis
+    sentiment_score, pos, neg, neu = get_sentiment_score()
+    total_posts = pos + neg + neu
+    
+    # Get price data and make prediction
+    historical_prices = get_historical_btc_prices()
+    predicted_price = predict_next_day_price(model, scaler, historical_prices, 60)
+    btc_price = get_real_btc_price()
+    
+    # Trading logic
+    usd_balance = 1000.0
+    btc_balance = 0.0
+    average_buy_price = 0.0
+    action = "HOLD"
+    email_sent = False
+    
+    if sentiment_score > 0.3 and predicted_price > btc_price * 1.01 and usd_balance >= 100:
+        action = "BUY"
+        btc_bought = 100 / btc_price
+        usd_balance -= 100
+        btc_balance += btc_bought
+        average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
+    elif sentiment_score < -0.3 and predicted_price < btc_price * 0.99 and btc_balance >= 0.001:
+        action = "SELL"
+        usd_gained = 0.001 * btc_price
+        btc_balance -= 0.001
+        usd_balance += usd_gained
+        if btc_balance == 0:
+            average_buy_price = 0.0
+    elif btc_balance >= 0.001:
+        if btc_price <= average_buy_price * 0.95:
+            action = "STOP-LOSS"
+            usd_gained = 0.001 * btc_price
+            btc_balance -= 0.001
+            usd_balance += usd_gained
+        elif btc_price >= average_buy_price * 1.10:
+            action = "TAKE-PROFIT"
+            usd_gained = 0.001 * btc_price
+            btc_balance -= 0.001
+            usd_balance += usd_gained
+    
+    # Log to file and Google Sheets
+    with open("sentiment_trade_log.txt", "a") as f:
+        f.write(f"{datetime.now()} | Action: {action} | Sentiment: {sentiment_score:.4f} | Predicted BTC: ${predicted_price:.2f} | BTC: ${btc_price:.2f} | USD: ${usd_balance:.2f} | BTC Bal: {btc_balance:.6f}\n")
+    
+    log_trade_to_google_sheets(sheet, action, sentiment_score, predicted_price, btc_price, usd_balance, btc_balance)
+    
+    # Send email for significant actions
+    if action in ["BUY", "SELL", "STOP-LOSS", "TAKE-PROFIT"]:
+        try:
+            send_email_alert(
+                f"[Crypto Bot] {action} Signal",
+                f"Action: {action}\nSentiment: {sentiment_score:.4f}\nPredicted: ${predicted_price:.2f}\nBTC Now: ${btc_price:.2f}\nUSD Balance: ${usd_balance:.2f}\nBTC Balance: {btc_balance:.6f}"
+            )
+            email_sent = True
+        except:
+            email_sent = False
+    
+    # Return detailed results
+    return {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "sentiment_score": sentiment_score,
+        "pos_count": pos,
+        "neg_count": neg,
+        "neu_count": neu,
+        "total_posts": total_posts,
+        "predicted_price": predicted_price,
+        "btc_price": btc_price,
+        "action": action,
+        "usd_balance": usd_balance,
+        "btc_balance": btc_balance,
+        "email_sent": email_sent
+    }
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
