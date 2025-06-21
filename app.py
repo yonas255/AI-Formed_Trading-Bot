@@ -23,10 +23,11 @@ DASHBOARD_TEMPLATE = """
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
+            line-height: 1.6;
         }
         
         .container {
@@ -37,70 +38,84 @@ DASHBOARD_TEMPLATE = """
         .header {
             text-align: center;
             color: white;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
+            padding: 20px 0;
         }
         
         .header h1 {
-            font-size: 3em;
+            font-size: clamp(2rem, 5vw, 3rem);
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-weight: 700;
         }
         
         .header p {
-            font-size: 1.2em;
+            font-size: clamp(1rem, 3vw, 1.2rem);
             opacity: 0.9;
+            margin: 0 10px;
         }
         
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
         }
         
         .card {
             background: rgba(255, 255, 255, 0.95);
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
         
         .card h3 {
             color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5em;
+            margin-bottom: 15px;
+            font-size: clamp(1.1rem, 2.5vw, 1.4rem);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            font-weight: 600;
         }
         
         .button {
             display: inline-block;
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
-            padding: 12px 24px;
-            margin: 8px 5px;
+            padding: 14px 20px;
+            margin: 6px 3px;
             border-radius: 25px;
             text-decoration: none;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
             border: none;
             cursor: pointer;
-            font-size: 14px;
+            font-size: clamp(0.85rem, 2vw, 0.95rem);
+            text-align: center;
+            min-width: 120px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         
-        .button:hover {
+        .button:hover, .button:focus {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 5px 18px rgba(0, 0, 0, 0.3);
+            outline: none;
+        }
+        
+        .button:active {
+            transform: translateY(0px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         
         .button.danger {
@@ -117,6 +132,7 @@ DASHBOARD_TEMPLATE = """
             height: 12px;
             border-radius: 50%;
             margin-right: 8px;
+            flex-shrink: 0;
         }
         
         .status-online {
@@ -136,56 +152,168 @@ DASHBOARD_TEMPLATE = """
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
         }
         
         .stat-item {
             background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
+            padding: 12px;
+            border-radius: 8px;
             text-align: center;
         }
         
         .stat-value {
-            font-size: 1.5em;
+            font-size: clamp(1.1rem, 3vw, 1.3rem);
             font-weight: bold;
             color: #333;
         }
         
         .stat-label {
-            font-size: 0.9em;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
             color: #666;
-            margin-top: 5px;
+            margin-top: 3px;
         }
         
         .footer {
             text-align: center;
             color: white;
-            margin-top: 40px;
+            margin-top: 30px;
             opacity: 0.8;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+            padding: 15px;
         }
         
         .alert {
             background: rgba(255, 193, 7, 0.1);
             border: 1px solid #ffc107;
             color: #856404;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: clamp(0.85rem, 2vw, 0.95rem);
         }
         
         .log-preview {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
             border-radius: 8px;
-            padding: 15px;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 200px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: clamp(0.7rem, 1.8vw, 0.85rem);
+            max-height: 150px;
             overflow-y: auto;
-            margin: 15px 0;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+        
+        /* Mobile-specific optimizations */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                margin-bottom: 20px;
+                padding: 10px 0;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+            
+            .card {
+                padding: 15px;
+                border-radius: 12px;
+            }
+            
+            .button {
+                padding: 12px 16px;
+                margin: 5px 2px;
+                width: calc(50% - 6px);
+                display: inline-block;
+                text-align: center;
+                font-size: 0.9rem;
+            }
+            
+            .footer {
+                margin-top: 20px;
+                padding: 10px;
+            }
+            
+            .alert {
+                padding: 10px;
+                margin: 10px 0;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            .button {
+                width: 100%;
+                margin: 4px 0;
+                padding: 14px 12px;
+            }
+            
+            .card h3 {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .stat-item {
+                padding: 10px;
+            }
+        }
+        
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .button:hover {
+                transform: none;
+            }
+            
+            .card:hover {
+                transform: none;
+            }
+            
+            .button {
+                padding: 16px 20px;
+            }
+        }
+        
+        /* Landscape phone optimization */
+        @media screen and (max-height: 500px) and (orientation: landscape) {
+            .header h1 {
+                font-size: 2rem;
+                margin-bottom: 5px;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+            
+            .header {
+                margin-bottom: 15px;
+                padding: 5px 0;
+            }
+            
+            .card {
+                padding: 12px;
+            }
+        }
+        
+        /* High DPI displays */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .button {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            }
         }
     </style>
 </head>
