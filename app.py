@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template_string, send_file, jsonify, request
 from flask_socketio import SocketIO, emit
 import threading
@@ -591,16 +590,17 @@ DASHBOARD_TEMPLATE = """
         // WebSocket initialization
         function initWebSocket() {
             try {
-                socket = io();
-                
-                socket.on('connect', function() {
-                    console.log('Connected to server');
-                    const statusEl = document.getElementById('botStatus');
-                    if (statusEl) statusEl.textContent = 'Connected';
-                });
+                if (typeof io !== 'undefined') {
+                    socket = io();
 
-                socket.on('price_update', function(data) {
-                    updatePriceDisplay(data);
+                    socket.on('connect', function() {
+                        console.log('Connected to server');
+                        const statusEl = document.getElementById('botStatus');
+                        if (statusEl) statusEl.textContent = 'Connected';
+                    });
+
+                    socket.on('price_update', function(data) {
+                        updatePriceDisplay(data);
                     updateChart(data);
                 });
 
@@ -630,13 +630,13 @@ DASHBOARD_TEMPLATE = """
             const chartElement = document.getElementById('priceChart');
             if (!chartElement) {
                 console.error('Chart element not found');
+                setTimeout(initChart, 1000); // Retry after 1 second
                 return;
             }
-            
+
             try {
                 const ctx = chartElement.getContext('2d');
-
-            priceChart = new Chart(ctx, {
+                priceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
@@ -732,12 +732,12 @@ DASHBOARD_TEMPLATE = """
         // Update functions
         function updatePriceDisplay(data) {
             document.getElementById('currentPrice').textContent = '$' + data.price.toLocaleString();
-            
+
             const changePercent = data.change_24h || 0;
             const changeElement = document.getElementById('priceChange');
             changeElement.textContent = (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%';
             changeElement.style.color = changePercent >= 0 ? '#4ecdc4' : '#ff6b6b';
-            
+
             document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
         }
 
@@ -772,7 +772,7 @@ DASHBOARD_TEMPLATE = """
             document.getElementById('usdBalance').textContent = '$' + data.usd_balance.toLocaleString();
             document.getElementById('cryptoBalance').textContent = data.crypto_balance.toFixed(6);
             document.getElementById('cryptoLabel').textContent = currentSymbol + ' Balance';
-            
+
             const pnl = data.daily_pnl || 0;
             const pnlElement = document.getElementById('dailyPnL');
             pnlElement.textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
@@ -810,7 +810,7 @@ DASHBOARD_TEMPLATE = """
             const logElement = document.getElementById('tradingLog');
             const newEntry = `${new Date().toLocaleTimeString()} | ${data.action} | ${currentSymbol}: $${data.price} | ${data.reason}\n`;
             logElement.textContent = newEntry + logElement.textContent;
-            
+
             // Keep only last 10 entries
             const lines = logElement.textContent.split('\n');
             if (lines.length > 10) {
@@ -834,9 +834,9 @@ DASHBOARD_TEMPLATE = """
                 animation: slideIn 0.3s ease;
             `;
             notification.innerHTML = `<strong>${data.action}</strong><br>${currentSymbol}: $${data.price}`;
-            
+
             document.body.appendChild(notification);
-            
+
             setTimeout(() => {
                 notification.remove();
             }, 5000);
@@ -846,16 +846,16 @@ DASHBOARD_TEMPLATE = """
         function selectCrypto(crypto, symbol) {
             currentCrypto = crypto;
             currentSymbol = symbol;
-            
+
             // Update active button
             document.querySelectorAll('.crypto-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
-            
+
             // Request new data
             if (socket) {
                 socket.emit('request_initial_data', {crypto: currentCrypto});
             }
-            
+
             // Update chart label
             if (priceChart) {
                 priceChart.data.datasets[0].label = symbol + ' Price (USD)';
@@ -869,7 +869,7 @@ DASHBOARD_TEMPLATE = """
             document.body.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
             const themeBtn = document.querySelector('.theme-toggle');
             if (themeBtn) themeBtn.textContent = isDarkTheme ? '☀️' : '🌙';
-            
+
             if (priceChart) {
                 priceChart.options.plugins.legend.labels.color = isDarkTheme ? '#e2e8f0' : '#333';
                 priceChart.options.scales.x.grid.color = isDarkTheme ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
@@ -933,13 +933,13 @@ def handle_technical_request(data):
 @socketio.on('request_initial_data')
 def handle_initial_data_request(data):
     crypto = data.get('crypto', 'bitcoin')
-    
+
     # Send all initial data
     price_data = get_crypto_price_data(crypto)
     sentiment_data = get_live_sentiment_data()
     portfolio_data = get_portfolio_data()
     technical_data = get_technical_analysis(crypto)
-    
+
     emit('price_update', price_data)
     emit('sentiment_update', sentiment_data)
     emit('portfolio_update', portfolio_data)
@@ -952,18 +952,18 @@ def get_crypto_price_data(crypto_id):
         price_url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies=usd&include_24hr_change=true"
         price_response = requests.get(price_url, timeout=10)
         price_data = price_response.json()
-        
+
         current_price = price_data[crypto_id]['usd']
         change_24h = price_data[crypto_id].get('usd_24h_change', 0)
-        
+
         # Historical data for chart
         history_url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=1&interval=hourly"
         history_response = requests.get(history_url, timeout=10)
         history_data = history_response.json()
-        
+
         prices = [price[1] for price in history_data['prices']]
         labels = [datetime.fromtimestamp(price[0]/1000).strftime('%H:%M') for price in history_data['prices']]
-        
+
         return {
             'price': current_price,
             'change_24h': change_24h,
@@ -1009,22 +1009,22 @@ def get_technical_analysis(crypto_id):
         history_url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=30"
         response = requests.get(history_url, timeout=10)
         data = response.json()
-        
+
         prices = [price[1] for price in data['prices']]
-        
+
         # Calculate RSI
         rsi = calculate_rsi(prices)
-        
+
         # Get Fear & Greed Index
         fear_greed = get_fear_greed_index()
-        
+
         # Mock MACD and AI prediction
         macd_signal = "BUY" if rsi < 30 else "SELL" if rsi > 70 else "HOLD"
         ai_signal = "BUY" if rsi < 40 else "SELL" if rsi > 60 else "HOLD"
-        
+
         # Predict next price using simple trend
         predicted_price = prices[-1] * (1.02 if ai_signal == "BUY" else 0.98 if ai_signal == "SELL" else 1.0)
-        
+
         return {
             'rsi': rsi,
             'macd': macd_signal,
@@ -1047,17 +1047,17 @@ def get_technical_analysis(crypto_id):
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1:
         return 50
-    
+
     deltas = [prices[i] - prices[i-1] for i in range(1, len(prices))]
     gains = [delta if delta > 0 else 0 for delta in deltas]
     losses = [-delta if delta < 0 else 0 for delta in deltas]
-    
+
     avg_gain = sum(gains[-period:]) / period
     avg_loss = sum(losses[-period:]) / period
-    
+
     if avg_loss == 0:
         return 100
-    
+
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
@@ -1497,29 +1497,29 @@ def run_trading_bot_with_results():
     # Get technical indicators for enhanced decision making
     technical_data = get_technical_analysis('bitcoin')
     rsi = technical_data.get('rsi', 50)
-    
+
     # Enhanced trading logic with multiple indicators
     buy_signals = 0
     sell_signals = 0
-    
+
     # Sentiment signal
     if sentiment_score > 0.3:
         buy_signals += 1
     elif sentiment_score < -0.3:
         sell_signals += 1
-    
+
     # Price prediction signal
     if predicted_price > btc_price * 1.01:
         buy_signals += 1
     elif predicted_price < btc_price * 0.99:
         sell_signals += 1
-    
+
     # RSI signal
     if rsi < 30:
         buy_signals += 1
     elif rsi > 70:
         sell_signals += 1
-    
+
     # Execute trades based on multiple signals
     if buy_signals >= 2 and usd_balance >= 100:
         action = "BUY"
