@@ -629,10 +629,12 @@ DASHBOARD_TEMPLATE = """
         function initChart() {
             const chartElement = document.getElementById('priceChart');
             if (!chartElement) {
-                console.log('Chart element not found');
+                console.error('Chart element not found');
                 return;
             }
-            const ctx = chartElement.getContext('2d');
+            
+            try {
+                const ctx = chartElement.getContext('2d');
 
             priceChart = new Chart(ctx, {
                 type: 'line',
@@ -701,6 +703,9 @@ DASHBOARD_TEMPLATE = """
                     }
                 }
             });
+            } catch (error) {
+                console.error('Error initializing chart:', error);
+            }
         }
 
         // Real-time updates
@@ -737,11 +742,15 @@ DASHBOARD_TEMPLATE = """
         }
 
         function updateChart(data) {
-            if (priceChart && data.historical) {
-                priceChart.data.labels = data.historical.labels;
-                priceChart.data.datasets[0].data = data.historical.prices;
-                priceChart.data.datasets[0].label = currentSymbol + ' Price (USD)';
-                priceChart.update('none');
+            try {
+                if (priceChart && data && data.historical) {
+                    priceChart.data.labels = data.historical.labels;
+                    priceChart.data.datasets[0].data = data.historical.prices;
+                    priceChart.data.datasets[0].label = currentSymbol + ' Price (USD)';
+                    priceChart.update('none');
+                }
+            } catch (error) {
+                console.error('Error updating chart:', error);
             }
         }
 
@@ -833,8 +842,8 @@ DASHBOARD_TEMPLATE = """
             }, 5000);
         }
 
-        // Crypto selection
-        window.selectCrypto = function(crypto, symbol) {
+        // Crypto selection function  
+        function selectCrypto(crypto, symbol) {
             currentCrypto = crypto;
             currentSymbol = symbol;
             
@@ -854,8 +863,8 @@ DASHBOARD_TEMPLATE = """
             }
         }
 
-        // Theme toggle
-        window.toggleTheme = function() {
+        // Theme toggle function
+        function toggleTheme() {
             isDarkTheme = !isDarkTheme;
             document.body.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
             const themeBtn = document.querySelector('.theme-toggle');
@@ -880,6 +889,10 @@ DASHBOARD_TEMPLATE = """
             }
         `;
         document.head.appendChild(style);
+
+        // Make functions globally available
+        window.toggleTheme = toggleTheme;
+        window.selectCrypto = selectCrypto;
     </script>
 </body>
 </html>
