@@ -650,13 +650,13 @@ DASHBOARD_TEMPLATE = """
         function updateSentimentDisplay(data) {
             const scoreEl = document.getElementById('sentimentScore');
             if (scoreEl) scoreEl.textContent = (data.score || 0).toFixed(4);
-            
+
             const posEl = document.getElementById('positivePosts');
             if (posEl) posEl.textContent = data.positive || 0;
-            
+
             const negEl = document.getElementById('negativePosts');
             if (negEl) negEl.textContent = data.negative || 0;
-            
+
             const neuEl = document.getElementById('neutralPosts');
             if (neuEl) neuEl.textContent = data.neutral || 0;
 
@@ -683,17 +683,17 @@ DASHBOARD_TEMPLATE = """
                 negative: 23,
                 neutral: 32
             });
-            
+
             // Load mock chart data
             const mockLabels = [];
             const mockPrices = [];
             const basePrice = 65000;
-            
+
             for (let i = 0; i < 24; i++) {
                 mockLabels.push(String(i).padStart(2, '0') + ':00');
                 mockPrices.push(basePrice + (Math.random() * 2000 - 1000));
             }
-            
+
             updateChart({
                 historical: {
                     labels: mockLabels,
@@ -787,11 +787,11 @@ DASHBOARD_TEMPLATE = """
                         }
                     }
                 });
-                
+
                 console.log('Chart initialized successfully');
                 // Load mock data after chart is ready
                 setTimeout(loadMockData, 500);
-                
+
             } catch (error) {
                 console.error('Error initializing chart:', error);
                 // Still load mock data even if chart fails
@@ -804,7 +804,7 @@ DASHBOARD_TEMPLATE = """
             try {
                 if (typeof io !== 'undefined') {
                     socket = io();
-                    
+
                     socket.on('connect', function() {
                         console.log('Connected to server');
                         const statusEl = document.getElementById('botStatus');
@@ -846,24 +846,37 @@ DASHBOARD_TEMPLATE = """
         // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Page loaded, initializing...');
-            
+
             // Initialize chart first
             setTimeout(function() {
                 initChart();
             }, 500);
-            
+
             // Initialize WebSocket
             setTimeout(function() {
                 initWebSocket();
             }, 800);
-            
-            // Load mock data as fallback
-            setTimeout(function() {
-                if (!socket || !socket.connected) {
-                    console.log('Loading fallback mock data...');
-                    loadMockData();
-                }
-            }, 2000);
+
+            // Set up automatic data refresh for real-time updates
+        setInterval(function() {
+            if (socket && socket.connected) {
+                console.log('Requesting real-time data update...');
+                socket.emit('request_initial_data', {crypto: currentCrypto});
+            } else {
+                console.log('Refreshing market data...');
+                loadMockData();
+            }
+        }, 30000); // Update every 30 seconds
+
+        // Load initial data
+        setTimeout(function() {
+            if (socket && socket.connected) {
+                socket.emit('request_initial_data', {crypto: currentCrypto});
+            } else {
+                console.log('Loading initial market data...');
+                loadMockData();
+            }
+        }, 2000);
         });
     </script>
 </body>
@@ -923,12 +936,16 @@ def get_crypto_price_data(crypto_id):
         # Current price
         price_url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies=usd&include_24hr_change=true"
         price_response = requests.get(price_url, timeout=10)
-        
-        if price_response.status_code != 200:
+
+        if price_response.status_code != 200 and price_response.status_code != 429 and price_response.status_code != 401 :
             raise Exception(f"API returned status {price_response.status_code}")
         
-        price_data = price_response.json()
+        if price_response.status_code == 429 or price_response.status_code == 401:
+            print("Rate limit hit. Returning Mock data")
+            raise Exception(f"Rate limit hit {price_response.status_code}")
         
+        price_data = price_response.json()
+
         if crypto_id not in price_data:
             raise Exception(f"No data for {crypto_id}")
 
@@ -938,12 +955,16 @@ def get_crypto_price_data(crypto_id):
         # Historical data for chart
         history_url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=1&interval=hourly"
         history_response = requests.get(history_url, timeout=10)
-        
-        if history_response.status_code != 200:
+
+        if history_response.status_code != 200 and history_response.status_code != 429 and history_response.status_code != 401:
             raise Exception(f"History API returned status {history_response.status_code}")
-        
+
+        if history_response.status_code == 429 or history_response.status_code == 401:
+            print("Rate limit hit. Returning Mock data")
+            raise Exception(f"Rate limit hit {history_response.status_code}")
+            
         history_data = history_response.json()
-        
+
         if 'prices' not in history_data:
             raise Exception("No prices data in API response")
 
@@ -964,12 +985,12 @@ def get_crypto_price_data(crypto_id):
         base_price = 65000 if crypto_id == 'bitcoin' else 3500 if crypto_id == 'ethereum' else 1.2 if crypto_id == 'cardano' else 150 if crypto_id == 'solana' else 600
         mock_prices = []
         mock_labels = []
-        
+
         for i in range(24):
             variation = (i - 12) * 0.01  # Small price variation
             mock_prices.append(base_price * (1 + variation))
             mock_labels.append(f"{i:02d}:00")
-        
+
         return {
             'price': base_price,
             'change_24h': 2.5,
@@ -1007,12 +1028,16 @@ def get_technical_analysis(crypto_id):
         # Get historical data for technical analysis
         history_url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days=30"
         response = requests.get(history_url, timeout=10)
-        
-        if response.status_code != 200:
+
+        if response.status_code != 200 and response.status_code != 429 and response.status_code != 401:
             raise Exception(f"API returned status {response.status_code}")
         
+        if response.status_code == 429 or response.status_code == 401:
+            print("Rate limit hit. Returning Mock data")
+            raise Exception(f"Rate limit hit {response.status_code}")
+
         data = response.json()
-        
+
         if 'prices' not in data:
             raise Exception("No prices data in API response")
 
@@ -1043,7 +1068,7 @@ def get_technical_analysis(crypto_id):
         print(f"Error in technical analysis for {crypto_id}: {e}")
         # Return mock technical data
         base_price = 65000 if crypto_id == 'bitcoin' else 3500 if crypto_id == 'ethereum' else 1.2 if crypto_id == 'cardano' else 150 if crypto_id == 'solana' else 600
-        
+
         return {
             'rsi': 55,
             'macd': 'HOLD',
@@ -1492,7 +1517,7 @@ def run_trading_bot_with_results():
     total_posts = pos + neg + neu
 
     # Get price data and make prediction
-    historical_prices = get_historical_btc_prices()
+    historical_prices= get_historical_btc_prices()
     predicted_price = predict_next_day_price(model, scaler, historical_prices, 60)
     btc_price = get_real_btc_price()
 
