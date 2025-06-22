@@ -455,7 +455,7 @@ DASHBOARD_TEMPLATE = """
                 </div>
                 <div class="price-display">
                     <div class="price-value" id="currentPrice">Loading...</div>
-                    <div class="price-change" id="priceChange">24h change</div>
+                    <div class="price-change" id="priceChange">Loading...</div>
                 </div>
                 <div class="chart-container">
                     <canvas id="priceChart"></canvas>
@@ -469,6 +469,14 @@ DASHBOARD_TEMPLATE = """
                     <strong>Status:</strong> 
                     <span id="botStatus">{{ 'Running' if bot_running else 'Stopped' }}</span>
                 </div>
+                
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; font-size: 0.9rem;">
+                    <strong>🔍 Control Options:</strong><br>
+                    <strong>▶️ Start Bot:</strong> Continuous trading (stays running)<br>
+                    <strong>⚡ Run Once:</strong> Single analysis & trade decision<br>
+                    <strong>🛑 Stop Bot:</strong> Stop continuous trading
+                </div>
+                
                 <a class="button success" href="{{ url_for('start_bot') }}">▶️ Start Bot</a>
                 <a class="button danger" href="{{ url_for('stop_bot') }}">🛑 Stop Bot</a>
                 <a class="button" href="{{ url_for('run_once') }}">⚡ Run Once</a>
@@ -671,42 +679,48 @@ DASHBOARD_TEMPLATE = """
         }
 
         function loadMockData() {
-            // Load mock price data
-            updatePriceDisplay({
-                price: 65432.50,
-                change_24h: 2.34
-            });
+            // Only load mock data if no real data is available after timeout
+            console.log('Waiting for real data... If no data arrives, showing loading state');
+            
+            // Don't load mock data immediately - keep loading state
+            setTimeout(function() {
+                // Only show mock data if elements still show "Loading..."
+                const priceEl = document.getElementById('currentPrice');
+                if (priceEl && priceEl.textContent === 'Loading...') {
+                    console.log('Real data timeout - showing estimated market data');
+                    
+                    // Load realistic current market data only after timeout
+                    updatePriceDisplay({
+                        price: 102900,  // Current realistic BTC price
+                        change_24h: 1.23
+                    });
 
-            // Load mock sentiment data
-            updateSentimentDisplay({
-                score: 0.2456,
-                positive: 45,
-                negative: 23,
-                neutral: 32
-            });
+                    // Load realistic sentiment data
+                    updateSentimentDisplay({
+                        score: 0.0000,
+                        positive: 0,
+                        negative: 0,
+                        neutral: 0
+                    });
 
-            // Load mock chart data
-            const mockLabels = [];
-            const mockPrices = [];
-            const basePrice = 65000;
-
-            for (let i = 0; i < 24; i++) {
-                mockLabels.push(String(i).padStart(2, '0') + ':00');
-                mockPrices.push(basePrice + (Math.random() * 2000 - 1000));
-            }
-
-            updateChart({
-                historical: {
-                    labels: mockLabels,
-                    prices: mockPrices
+                    // Keep chart empty if no real data
+                    if (priceChart && priceChart.data.labels.length === 0) {
+                        const mockLabels = ['Loading...'];
+                        const mockPrices = [102900];
+                        
+                        updateChart({
+                            historical: {
+                                labels: mockLabels,
+                                prices: mockPrices
+                            }
+                        });
+                    }
                 }
-            });
-
-            console.log('Mock data loaded successfully');
+            }, 15000); // Wait 15 seconds for real data before showing estimates
         }
 
         function loadInitialState() {
-            // Set initial state to "Loading..."
+            // Set initial state to "Loading..." for all elements
             const priceEl = document.getElementById('currentPrice');
             if (priceEl) priceEl.textContent = 'Loading...';
 
@@ -715,6 +729,28 @@ DASHBOARD_TEMPLATE = """
 
             const updateEl = document.getElementById('lastUpdate');
             if (updateEl) updateEl.textContent = 'Loading...';
+
+            // Set all other elements to loading state
+            const sentimentEl = document.getElementById('sentimentScore');
+            if (sentimentEl) sentimentEl.textContent = 'Loading...';
+
+            const posEl = document.getElementById('positivePosts');
+            if (posEl) posEl.textContent = '-';
+
+            const negEl = document.getElementById('negativePosts');
+            if (negEl) negEl.textContent = '-';
+
+            const neuEl = document.getElementById('neutralPosts');
+            if (neuEl) neuEl.textContent = '-';
+
+            const predictedEl = document.getElementById('predictedPrice');
+            if (predictedEl) predictedEl.textContent = 'Loading...';
+
+            const rsiEl = document.getElementById('rsiValue');
+            if (rsiEl) rsiEl.textContent = '-';
+
+            const aiEl = document.getElementById('aiValue');
+            if (aiEl) aiEl.textContent = 'Loading...';
 
             // Reset chart data
             if (priceChart) {
@@ -870,6 +906,9 @@ DASHBOARD_TEMPLATE = """
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Page loaded, initializing...');
 
+            // Set loading state immediately
+            loadInitialState();
+
             // Initialize chart first
             setTimeout(function() {
                 initChart();
@@ -881,25 +920,25 @@ DASHBOARD_TEMPLATE = """
             }, 800);
 
             // Set up automatic data refresh for real-time updates  
-        setInterval(function() {
-            if (socket && socket.connected) {
-                console.log('Requesting real-time data update...');
-                socket.emit('request_initial_data', {crypto: currentCrypto});
-            } else {
-                console.log('Refreshing market data...');
-                loadMockData();
-            }
-        }, 120000); // Update every 2 minutes to avoid rate limits
+            setInterval(function() {
+                if (socket && socket.connected) {
+                    console.log('Requesting real-time data update...');
+                    socket.emit('request_initial_data', {crypto: currentCrypto});
+                } else {
+                    console.log('No connection - keeping loading state');
+                }
+            }, 120000); // Update every 2 minutes to avoid rate limits
 
-        // Load initial data
-        setTimeout(function() {
-            if (socket && socket.connected) {
-                socket.emit('request_initial_data', {crypto: currentCrypto});
-            } else {
-                console.log('Loading initial market data...');
-                loadMockData();
-            }
-        }, 2000);
+            // Request real data after WebSocket is ready
+            setTimeout(function() {
+                if (socket && socket.connected) {
+                    console.log('Requesting initial real data...');
+                    socket.emit('request_initial_data', {crypto: currentCrypto});
+                } else {
+                    console.log('No connection yet - will load fallback data after timeout');
+                    loadMockData(); // This now waits 15 seconds before showing estimates
+                }
+            }, 3000);
         });
     </script>
 </body>
