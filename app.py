@@ -705,6 +705,28 @@ DASHBOARD_TEMPLATE = """
             console.log('Mock data loaded successfully');
         }
 
+        function loadInitialState() {
+            // Set initial state to "Loading..."
+            const priceEl = document.getElementById('currentPrice');
+            if (priceEl) priceEl.textContent = 'Loading...';
+
+            const changeElement = document.getElementById('priceChange');
+            if (changeElement) changeElement.textContent = 'Loading...';
+
+            const updateEl = document.getElementById('lastUpdate');
+            if (updateEl) updateEl.textContent = 'Loading...';
+
+            // Reset chart data
+            if (priceChart) {
+                priceChart.data.labels = [];
+                priceChart.data.datasets[0].data = [];
+                priceChart.update();
+            }
+
+            console.log('Initial loading state set');
+        }
+
+
         // Chart initialization
         function initChart() {
             const chartElement = document.getElementById('priceChart');
@@ -831,12 +853,12 @@ DASHBOARD_TEMPLATE = """
                         if (statusEl) statusEl.textContent = 'Disconnected';
                     });
                 } else {
-                    console.warn('Socket.IO not loaded, using mock data');
-                    setTimeout(loadMockData, 2000);
+                    console.warn('Socket.IO not loaded, showing loading state');
+                    setTimeout(loadInitialState, 2000);
                 }
             } catch (error) {
                 console.error('WebSocket connection error:', error);
-                setTimeout(loadMockData, 2000);
+                setTimeout(loadInitialState, 2000);
             }
         }
 
@@ -938,17 +960,17 @@ cache_duration = 60  # Cache for 60 seconds
 # Data fetching functions
 def get_crypto_price_data(crypto_id):
     global price_cache
-    
+
     # Check cache first
     cache_key = f"{crypto_id}_price"
     current_time = time.time()
-    
+
     if cache_key in price_cache:
         cached_data, cache_time = price_cache[cache_key]
         if current_time - cache_time < cache_duration:
             print(f"📋 Using cached data for {crypto_id}: ${cached_data['price']:,.2f}")
             return cached_data
-    
+
     try:
         # Try CoinCap API first (higher rate limits and more reliable)
         try:
@@ -960,29 +982,29 @@ def get_crypto_price_data(crypto_id):
                 'solana': 'solana',
                 'binancecoin': 'binance-coin'
             }
-            
+
             coincap_id = coincap_mapping.get(crypto_id, crypto_id)
             coincap_url = f"https://api.coincap.io/v2/assets/{coincap_id}"
             headers = {'User-Agent': 'Mozilla/5.0 (compatible; TradingBot/1.0)'}
-            
+
             response = requests.get(coincap_url, headers=headers, timeout=8)
             if response.status_code == 200:
                 data = response.json()['data']
                 current_price = float(data['priceUsd'])
                 change_24h = float(data['changePercent24Hr'])
-                
+
                 # Generate recent historical data for chart (last 24 hours)
                 prices = []
                 labels = []
                 base_price = current_price
-                
+
                 for i in range(24):
                     # Create realistic price variation
                     hour_change = (change_24h / 24) + (i * 0.1 - 1.2)  # More realistic variation
                     price_point = base_price * (1 + hour_change / 100)
                     prices.append(price_point)
                     labels.append(f"{i:02d}:00")
-                
+
                 result = {
                     'price': current_price,
                     'change_24h': change_24h,
@@ -991,16 +1013,16 @@ def get_crypto_price_data(crypto_id):
                         'labels': labels
                     }
                 }
-                
+
                 # Cache the result
                 price_cache[cache_key] = (result, current_time)
-                
+
                 print(f"✅ Real CoinCap data for {crypto_id}: ${current_price:,.2f}")
                 return result
-                
+
         except Exception as e:
             print(f"CoinCap API failed: {e}")
-        
+
         # Fallback to CoinGecko with better rate limit handling
         time.sleep(1.5)  # Longer delay to avoid rate limits
         price_url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies=usd&include_24hr_change=true"
@@ -1009,27 +1031,27 @@ def get_crypto_price_data(crypto_id):
             'Accept': 'application/json',
             'Cache-Control': 'no-cache'
         }
-        
+
         price_response = requests.get(price_url, headers=headers, timeout=10)
 
         if price_response.status_code == 200:
             price_data = price_response.json()
-            
+
             if crypto_id in price_data:
                 current_price = price_data[crypto_id]['usd']
                 change_24h = price_data[crypto_id].get('usd_24h_change', 0)
-                
+
                 # Generate historical data
                 prices = []
                 labels = []
                 base_price = current_price
-                
+
                 for i in range(24):
                     hour_change = (change_24h / 24) + (i * 0.1 - 1.2)
                     price_point = base_price * (1 + hour_change / 100)
                     prices.append(price_point)
                     labels.append(f"{i:02d}:00")
-                
+
                 result = {
                     'price': current_price,
                     'change_24h': change_24h,
@@ -1038,22 +1060,22 @@ def get_crypto_price_data(crypto_id):
                         'labels': labels
                     }
                 }
-                
+
                 # Cache the result
                 price_cache[cache_key] = (result, current_time)
-                
+
                 print(f"✅ Real CoinGecko data for {crypto_id}: ${current_price:,.2f}")
                 return result
-        
+
         # If both APIs fail due to rate limits
         if price_response.status_code in [429, 401]:
             print(f"⚠️ API rate limited for {crypto_id}")
-        
+
         raise Exception(f"All APIs failed or rate limited")
-        
+
     except Exception as e:
         print(f"⚠️ Using current market estimate for {crypto_id}: {e}")
-        
+
         # Use more realistic current market prices (updated to current levels)
         realistic_prices = {
             'bitcoin': 102900,     # Close to the real price we saw
@@ -1062,14 +1084,14 @@ def get_crypto_price_data(crypto_id):
             'solana': 175,         # Current market level
             'binancecoin': 720     # Current market level
         }
-        
+
         base_price = realistic_prices.get(crypto_id, 50000)
-        
+
         # Generate more realistic mock data with actual market-like variation
         mock_prices = []
         mock_labels = []
         import random
-        
+
         for i in range(24):
             # Create realistic hourly price movements
             hourly_variation = random.uniform(-0.015, 0.015)  # ±1.5% hourly variation
@@ -1089,10 +1111,10 @@ def get_crypto_price_data(crypto_id):
                 'labels': mock_labels
             }
         }
-        
+
         # Cache the mock data for a shorter time
         price_cache[cache_key] = (result, current_time - 30)  # Cache for 30 seconds only
-        
+
         return result
 
 def get_live_sentiment_data():
@@ -1126,7 +1148,7 @@ def get_technical_analysis(crypto_id):
 
         if response.status_code != 200 and response.status_code != 429 and response.status_code != 401:
             raise Exception(f"API returned status {response.status_code}")
-        
+
         if response.status_code == 429 or response.status_code == 401:
             print("Rate limit hit. Returning Mock data")
             raise Exception(f"Rate limit hit {response.status_code}")
@@ -1446,7 +1468,7 @@ def status():
 @app.route("/confidence-report")
 def confidence_report():
     """Generate confidence metrics for the trading bot"""
-    
+
     # Load validation data if available
     validation_data = {}
     try:
@@ -1459,7 +1481,7 @@ def confidence_report():
     except:
         validation_data['predictions'] = []
         validation_data['total_predictions'] = 0
-    
+
     # Load backtest results if available
     backtest_data = {}
     try:
@@ -1467,7 +1489,7 @@ def confidence_report():
             backtest_data = json.load(f)
     except:
         backtest_data = {'summary': {}}
-    
+
     # API reliability test
     api_tests = {}
     try:
@@ -1475,34 +1497,34 @@ def confidence_report():
         api_tests['coingecko'] = "✅ Working" if price_data['price'] > 0 else "❌ Failed"
     except:
         api_tests['coingecko'] = "❌ Failed"
-    
+
     try:
         fear_greed = get_fear_greed_index()
         api_tests['fear_greed'] = "✅ Working" if 0 <= fear_greed <= 100 else "❌ Failed"
     except:
         api_tests['fear_greed'] = "❌ Failed"
-    
+
     # Calculate confidence score
     confidence_factors = []
-    
+
     # Model availability
     if os.path.exists('btc_lstm_model.h5'):
         confidence_factors.append(('AI Model', 20, "✅ Loaded"))
     else:
         confidence_factors.append(('AI Model', 20, "❌ Missing"))
-    
+
     # Data sources
     if api_tests['coingecko'] == "✅ Working":
         confidence_factors.append(('Price Data', 25, "✅ Real-time"))
     else:
         confidence_factors.append(('Price Data', 25, "⚠️ Mock data"))
-    
+
     # Historical validation
     if validation_data['total_predictions'] >= 5:
         confidence_factors.append(('Validation', 25, f"✅ {validation_data['total_predictions']} predictions"))
     else:
         confidence_factors.append(('Validation', 25, "⚠️ Insufficient data"))
-    
+
     # Backtesting
     if 'total_return' in backtest_data.get('summary', {}):
         total_return = backtest_data['summary']['total_return']
@@ -1510,10 +1532,10 @@ def confidence_report():
         confidence_factors.append(('Backtesting', 20, f"{status} ({total_return:+.1f}%)"))
     else:
         confidence_factors.append(('Backtesting', 20, "❌ No backtest"))
-    
+
     # Risk management
     confidence_factors.append(('Risk Controls', 10, "✅ Stop-loss & Take-profit"))
-    
+
     # Calculate overall confidence
     total_score = 0
     max_score = 0
@@ -1523,14 +1545,14 @@ def confidence_report():
             total_score += weight
         elif "⚠️" in status:
             total_score += weight * 0.5
-    
+
     confidence_percentage = (total_score / max_score) * 100
-    
+
     return f"""
     <div style="padding: 20px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
         <div style="background: white; padding: 40px; border-radius: 20px; max-width: 1000px; margin: 0 auto;">
             <h2 style="text-align: center; color: #333;">🎯 Bot Confidence Report</h2>
-            
+
             <div style="background: {'#d4edda' if confidence_percentage >= 80 else '#fff3cd' if confidence_percentage >= 60 else '#f8d7da'}; 
                         padding: 25px; border-radius: 15px; margin: 30px 0; text-align: center;">
                 <h3 style="margin: 0; font-size: 2rem;">Overall Confidence: {confidence_percentage:.1f}%</h3>
@@ -1540,12 +1562,12 @@ def confidence_report():
                      '❌ Low Confidence - More development needed'}
                 </p>
             </div>
-            
+
             <h3>📊 Confidence Factors:</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 20px 0;">
                 {''.join([f'<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid {"#28a745" if "✅" in status else "#ffc107" if "⚠️" in status else "#dc3545"};"><strong>{factor} ({weight}%):</strong><br>{status}</div>' for factor, weight, status in confidence_factors])}
             </div>
-            
+
             <h3>🧪 Test Results:</h3>
             <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
                 <p><strong>API Status:</strong></p>
@@ -1553,14 +1575,14 @@ def confidence_report():
                     <li>CoinGecko Price API: {api_tests.get('coingecko', '❌ Not tested')}</li>
                     <li>Fear & Greed Index: {api_tests.get('fear_greed', '❌ Not tested')}</li>
                 </ul>
-                
+
                 <p><strong>Validation Data:</strong></p>
                 <ul>
                     <li>Total Predictions Logged: {validation_data['total_predictions']}</li>
                     {'<li>Backtest Return: ' + f"{backtest_data.get('summary', {}).get('total_return', 'N/A')}%" + '</li>' if 'total_return' in backtest_data.get('summary', {}) else '<li>No backtest data available</li>'}
                 </ul>
             </div>
-            
+
             <h3>🔧 Recommendations to Improve Confidence:</h3>
             <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin: 20px 0;">
                 <ul style="margin: 0; padding-left: 20px;">
@@ -1573,7 +1595,7 @@ def confidence_report():
                     <li>Test with small amounts first (paper trading)</li>
                 </ul>
             </div>
-            
+
             <div style="text-align: center; margin-top: 30px;">
                 <a href="/run-validation" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">🧪 Run Validation</a>
                 <a href="/run-backtest" style="background: #17a2b8; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">📈 Run Backtest</a>
