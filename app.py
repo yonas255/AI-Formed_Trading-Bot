@@ -857,7 +857,7 @@ DASHBOARD_TEMPLATE = """
                 initWebSocket();
             }, 800);
 
-            // Set up automatic data refresh for real-time updates
+            // Set up automatic data refresh for real-time updates  
         setInterval(function() {
             if (socket && socket.connected) {
                 console.log('Requesting real-time data update...');
@@ -866,7 +866,7 @@ DASHBOARD_TEMPLATE = """
                 console.log('Refreshing market data...');
                 loadMockData();
             }
-        }, 30000); // Update every 30 seconds
+        }, 120000); // Update every 2 minutes to avoid rate limits
 
         // Load initial data
         setTimeout(function() {
@@ -930,12 +930,38 @@ def handle_initial_data_request(data):
     emit('portfolio_update', portfolio_data)
     emit('technical_analysis', technical_data)
 
+# Cache for price data to reduce API calls
+price_cache = {}
+cache_duration = 60  # Cache for 60 seconds
+
 # Data fetching functions
 def get_crypto_price_data(crypto_id):
+    global price_cache
+    
+    # Check cache first
+    cache_key = f"{crypto_id}_price"
+    current_time = time.time()
+    
+    if cache_key in price_cache:
+        cached_data, cache_time = price_cache[cache_key]
+        if current_time - cache_time < cache_duration:
+            print(f"📋 Using cached data for {crypto_id}: ${cached_data['price']:,.2f}")
+            return cached_data
+    
     try:
-        # Try alternative API first (CoinCap has higher rate limits)
+        # Try CoinCap API first (higher rate limits and more reliable)
         try:
-            coincap_url = f"https://api.coincap.io/v2/assets/{crypto_id}"
+            # Map crypto IDs for CoinCap
+            coincap_mapping = {
+                'bitcoin': 'bitcoin',
+                'ethereum': 'ethereum', 
+                'cardano': 'cardano',
+                'solana': 'solana',
+                'binancecoin': 'binance-coin'
+            }
+            
+            coincap_id = coincap_mapping.get(crypto_id, crypto_id)
+            coincap_url = f"https://api.coincap.io/v2/assets/{coincap_id}"
             headers = {'User-Agent': 'Mozilla/5.0 (compatible; TradingBot/1.0)'}
             
             response = requests.get(coincap_url, headers=headers, timeout=8)
@@ -956,8 +982,7 @@ def get_crypto_price_data(crypto_id):
                     prices.append(price_point)
                     labels.append(f"{i:02d}:00")
                 
-                print(f"✅ Real price data fetched for {crypto_id}: ${current_price:,.2f}")
-                return {
+                result = {
                     'price': current_price,
                     'change_24h': change_24h,
                     'historical': {
@@ -965,13 +990,24 @@ def get_crypto_price_data(crypto_id):
                         'labels': labels
                     }
                 }
+                
+                # Cache the result
+                price_cache[cache_key] = (result, current_time)
+                
+                print(f"✅ Real CoinCap data for {crypto_id}: ${current_price:,.2f}")
+                return result
+                
         except Exception as e:
             print(f"CoinCap API failed: {e}")
         
-        # Fallback to CoinGecko with rate limit handling
-        time.sleep(0.5)  # Small delay to avoid rate limits
+        # Fallback to CoinGecko with better rate limit handling
+        time.sleep(1.5)  # Longer delay to avoid rate limits
         price_url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_id}&vs_currencies=usd&include_24hr_change=true"
-        headers = {'User-Agent': 'TradingBot/1.0', 'Accept': 'application/json'}
+        headers = {
+            'User-Agent': 'TradingBot/1.0', 
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+        }
         
         price_response = requests.get(price_url, headers=headers, timeout=10)
 
@@ -993,8 +1029,7 @@ def get_crypto_price_data(crypto_id):
                     prices.append(price_point)
                     labels.append(f"{i:02d}:00")
                 
-                print(f"✅ Real CoinGecko data for {crypto_id}: ${current_price:,.2f}")
-                return {
+                result = {
                     'price': current_price,
                     'change_24h': change_24h,
                     'historical': {
@@ -1002,26 +1037,32 @@ def get_crypto_price_data(crypto_id):
                         'labels': labels
                     }
                 }
+                
+                # Cache the result
+                price_cache[cache_key] = (result, current_time)
+                
+                print(f"✅ Real CoinGecko data for {crypto_id}: ${current_price:,.2f}")
+                return result
         
-        # If both APIs fail, show rate limit message but keep trying
+        # If both APIs fail due to rate limits
         if price_response.status_code in [429, 401]:
-            print(f"⚠️ API rate limited, using cached/estimated data for {crypto_id}")
+            print(f"⚠️ API rate limited for {crypto_id}")
         
         raise Exception(f"All APIs failed or rate limited")
         
     except Exception as e:
-        print(f"⚠️ Using estimated data for {crypto_id}: {e}")
+        print(f"⚠️ Using current market estimate for {crypto_id}: {e}")
         
-        # Get more realistic base prices (closer to current market)
+        # Use more realistic current market prices (updated to current levels)
         realistic_prices = {
-            'bitcoin': 95000,      # More realistic current BTC price
-            'ethereum': 3200,      # More realistic current ETH price  
-            'cardano': 0.45,       # More realistic current ADA price
-            'solana': 180,         # More realistic current SOL price
-            'binancecoin': 520     # More realistic current BNB price
+            'bitcoin': 102900,     # Close to the real price we saw
+            'ethereum': 3800,      # Current market level
+            'cardano': 0.38,       # Current market level
+            'solana': 175,         # Current market level
+            'binancecoin': 720     # Current market level
         }
         
-        base_price = realistic_prices.get(crypto_id, 1000)
+        base_price = realistic_prices.get(crypto_id, 50000)
         
         # Generate more realistic mock data with actual market-like variation
         mock_prices = []
@@ -1030,8 +1071,8 @@ def get_crypto_price_data(crypto_id):
         
         for i in range(24):
             # Create realistic hourly price movements
-            hourly_variation = random.uniform(-0.02, 0.02)  # ±2% hourly variation
-            trend_factor = 1 + (i - 12) * 0.001  # Slight daily trend
+            hourly_variation = random.uniform(-0.015, 0.015)  # ±1.5% hourly variation
+            trend_factor = 1 + (i - 12) * 0.0008  # Slight daily trend
             price_point = base_price * trend_factor * (1 + hourly_variation)
             mock_prices.append(price_point)
             mock_labels.append(f"{i:02d}:00")
@@ -1039,7 +1080,7 @@ def get_crypto_price_data(crypto_id):
         # Calculate realistic 24h change
         change_24h = ((mock_prices[-1] - mock_prices[0]) / mock_prices[0]) * 100
 
-        return {
+        result = {
             'price': base_price,
             'change_24h': change_24h,
             'historical': {
@@ -1047,6 +1088,11 @@ def get_crypto_price_data(crypto_id):
                 'labels': mock_labels
             }
         }
+        
+        # Cache the mock data for a shorter time
+        price_cache[cache_key] = (result, current_time - 30)  # Cache for 30 seconds only
+        
+        return result
 
 def get_live_sentiment_data():
     try:
