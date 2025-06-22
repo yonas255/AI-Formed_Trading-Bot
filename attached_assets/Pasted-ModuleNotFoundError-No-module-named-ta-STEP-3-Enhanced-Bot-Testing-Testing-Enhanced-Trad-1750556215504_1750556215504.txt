@@ -1,0 +1,69 @@
+ModuleNotFoundError: No module named 'ta'
+
+🔍 STEP 3: Enhanced Bot Testing
+
+🧪 Testing Enhanced Trading Bot...
+Installing required packages...
+error: externally-managed-environment
+
+× This environment is externally managed
+╰─> This command has been disabled as it tries to modify the immutable
+    `/nix/store` filesystem.
+    
+    To use Python with Nix and nixpkgs, have a look at the online documentation:
+    <https://nixos.org/manual/nixpkgs/stable/#python>.
+
+note: If you believe this is a mistake, please contact your Python installation or OS distribution provider. You can override this, at the risk of breaking your Python installation or OS, by passing --break-system-packages.
+hint: See PEP 668 for the detailed specification.
+❌ Enhanced bot test failed: Command '['pip', 'install', 'tensorflow', 'ta']' returned non-zero exit status 1.
+Traceback (most recent call last):
+  File "/home/runner/workspace/enhanced_trading_bot.py", line 16, in <module>
+    import ta
+ModuleNotFoundError: No module named 'ta'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/run_enhanced_training.py", line 61, in test_enhanced_bot
+    from enhanced_trading_bot import EnhancedTradingBot
+  File "/home/runner/workspace/enhanced_trading_bot.py", line 20, in <module>
+    subprocess.check_call(['pip', 'install', 'tensorflow', 'ta'])
+  File "/nix/store/clx0mcir7qw8zk36zbr4jra789g3knf6-python3-3.11.10/lib/python3.11/subprocess.py", line 413, in check_call
+    raise CalledProcessError(retcode, cmd)
+subprocess.CalledProcessError: Command '['pip', 'install', 'tensorflow', 'ta']' returned non-zero exit status 1.
+
+📋 STEP 4: Performance Report
+
+📊 Creating Performance Report...
+📋 Training Report Summary:
+   ✅ Training Completed: 
+   🤖 Models Available: Basic LSTM
+   📊 Performance Metrics: {}
+
+======================================================================
+🎉 ENHANCED TRAINING PIPELINE COMPLETE!
+======================================================================
+📊 Pipeline Success Rate: 1/4 (25.0%)
+
+📋 Step Results:
+   ❌ Enhanced Features: Failed
+   ❌ Ensemble Models: Failed
+   ❌ Bot Test: Failed
+   ✅ Report: Success
+
+⚠️ PARTIAL SUCCESS
+Some training steps failed, but you can still use:
+- Any successfully trained models
+- The existing basic trading system
+- Try running individual training scripts
+
+📁 Generated Files:
+   ❌ btc_enhanced_lstm_model.h5 (not created)
+   ❌ enhanced_feature_scaler.pkl (not created)
+   ❌ enhanced_price_scaler.pkl (not created)
+   ❌ feature_names.pkl (not created)
+   ❌ ensemble_model_lstm.h5 (not created)
+   ❌ ensemble_model_gru.h5 (not created)
+   ❌ ensemble_weights.pkl (not created)
+   ✅ training_report.json
+   ❌ ensemble_analysis.png (not created)
