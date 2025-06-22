@@ -469,14 +469,14 @@ DASHBOARD_TEMPLATE = """
                     <strong>Status:</strong> 
                     <span id="botStatus">{{ 'Running' if bot_running else 'Stopped' }}</span>
                 </div>
-                
+
                 <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; font-size: 0.9rem;">
                     <strong>🔍 Control Options:</strong><br>
                     <strong>▶️ Start Bot:</strong> Continuous trading (stays running)<br>
                     <strong>⚡ Run Once:</strong> Single analysis & trade decision<br>
                     <strong>🛑 Stop Bot:</strong> Stop continuous trading
                 </div>
-                
+
                 <a class="button success" href="{{ url_for('start_bot') }}">▶️ Start Bot</a>
                 <a class="button danger" href="{{ url_for('stop_bot') }}">🛑 Stop Bot</a>
                 <a class="button" href="{{ url_for('run_once') }}">⚡ Run Once</a>
@@ -681,14 +681,14 @@ DASHBOARD_TEMPLATE = """
         function loadMockData() {
             // Only load mock data if no real data is available after timeout
             console.log('Waiting for real data... If no data arrives, showing loading state');
-            
+
             // Don't load mock data immediately - keep loading state
             setTimeout(function() {
                 // Only show mock data if elements still show "Loading..."
                 const priceEl = document.getElementById('currentPrice');
                 if (priceEl && priceEl.textContent === 'Loading...') {
                     console.log('Real data timeout - showing estimated market data');
-                    
+
                     // Load realistic current market data only after timeout
                     updatePriceDisplay({
                         price: 102900,  // Current realistic BTC price
@@ -707,7 +707,7 @@ DASHBOARD_TEMPLATE = """
                     if (priceChart && priceChart.data.labels.length === 0) {
                         const mockLabels = ['Loading...'];
                         const mockPrices = [102900];
-                        
+
                         updateChart({
                             historical: {
                                 labels: mockLabels,
@@ -877,10 +877,18 @@ DASHBOARD_TEMPLATE = """
                     socket.on('price_update', function(data) {
                         updatePriceDisplay(data);
                         updateChart(data);
+                        // Also request technical analysis update with price
+                        if (socket && socket.connected) {
+                            socket.emit('request_technical_analysis', {crypto: currentCrypto});
+                        }
                     });
 
                     socket.on('sentiment_update', function(data) {
                         updateSentimentDisplay(data);
+                    });
+
+                    socket.on('technical_analysis', function(data) {
+                        updateTechnicalDisplay(data);
                     });
 
                     socket.on('disconnect', function() {
@@ -895,6 +903,54 @@ DASHBOARD_TEMPLATE = """
             } catch (error) {
                 console.error('WebSocket connection error:', error);
                 setTimeout(loadInitialState, 2000);
+            }
+        }
+
+        function updateTechnicalDisplay(data) {
+            const rsiEl = document.getElementById('rsiValue');
+            if (rsiEl) rsiEl.textContent = data.rsi || '-';
+
+            const macdEl = document.getElementById('macdValue');
+            if (macdEl) macdEl.textContent = data.macd_signal || 'HOLD';
+
+            const aiEl = document.getElementById('aiValue');
+            if (aiEl) aiEl.textContent = data.ai_signal || 'HOLD';
+
+            const predictedEl = document.getElementById('predictedPrice');
+            if (predictedEl) {
+                if (data.predicted_price && data.predicted_price > 0) {
+                    predictedEl.textContent = '$' + data.predicted_price.toLocaleString();
+                } else {
+                    predictedEl.textContent = 'Calculating...';
+                }
+            }
+
+            const fearGreedEl = document.getElementById('fearGreedIndex');
+            if (fearGreedEl) fearGreedEl.textContent = data.fear_greed || 50;
+
+            // Update indicator colors
+            const rsiIndicator = document.getElementById('rsiIndicator');
+            if (rsiIndicator) {
+                const rsi = data.rsi || 50;
+                if (rsi < 30) {
+                    rsiIndicator.className = 'indicator buy';
+                } else if (rsi > 70) {
+                    rsiIndicator.className = 'indicator sell';
+                } else {
+                    rsiIndicator.className = 'indicator hold';
+                }
+            }
+
+            const macdIndicator = document.getElementById('macdIndicator');
+            if (macdIndicator) {
+                const signal = data.macd_signal || 'HOLD';
+                macdIndicator.className = 'indicator ' + signal.toLowerCase();
+            }
+
+            const aiIndicator = document.getElementById('aiPrediction');
+            if (aiIndicator) {
+                const signal = data.ai_signal || 'HOLD';
+                aiIndicator.className = 'indicator ' + signal.toLowerCase();
             }
         }
 
