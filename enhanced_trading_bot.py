@@ -313,23 +313,30 @@ class EnhancedTradingBot:
             if len(enhanced_data) < look_back:
                 return data['close'].iloc[-1] * 1.01
             
+            # Safely get available feature names that exist in the data
+            available_features = [f for f in self.feature_names if f in enhanced_data.columns]
+            
+            if len(available_features) == 0:
+                print("⚠️ No matching features found, using simple prediction")
+                return data['close'].iloc[-1] * 1.01
+            
             # Get the latest features
-            feature_data = enhanced_data[self.feature_names].iloc[-look_back:].values
+            feature_data = enhanced_data[available_features].iloc[-look_back:].values
             price_data = enhanced_data[['close']].iloc[-look_back:].values
             
             # Scale features and prices
+            if feature_data.shape[1] != self.feature_scaler.n_features_in_:
+                print(f"⚠️ Feature mismatch: expected {self.feature_scaler.n_features_in_}, got {feature_data.shape[1]}")
+                return data['close'].iloc[-1] * 1.01
+            
             scaled_features = self.feature_scaler.transform(feature_data)
             scaled_prices = self.price_scaler.transform(price_data)
             
-            # Prepare sequence
-            feature_sequence = scaled_features
+            # Prepare sequence for prediction
             price_sequence = scaled_prices.flatten()
             
-            combined_sequence = np.column_stack([feature_sequence,
-                                               np.tile(price_sequence.reshape(-1, 1), (1, feature_sequence.shape[1]))])
-            
-            # Reshape for model
-            X = combined_sequence.reshape(1, look_back, -1)
+            # For simplified model input, just use the scaled price sequence
+            X = price_sequence.reshape(1, look_back, 1)
             
             # Make prediction
             prediction = self.model.predict(X, verbose=0)
@@ -356,6 +363,14 @@ class EnhancedTradingBot:
     
     def analyze_market_conditions(self, data):
         """Analyze current market conditions for enhanced decision making"""
+        if len(data) == 0:
+            return {
+                'trend': 'neutral',
+                'volatility': 'normal',
+                'volume': 'normal',
+                'momentum': 'neutral'
+            }
+            
         latest = data.iloc[-1]
         
         conditions = {
@@ -365,35 +380,43 @@ class EnhancedTradingBot:
             'momentum': 'neutral'
         }
         
-        # Trend analysis
-        if 'sma_50' in data.columns and 'sma_100' in data.columns:
-            if latest['close'] > latest['sma_50'] > latest['sma_100']:
-                conditions['trend'] = 'bullish'
-            elif latest['close'] < latest['sma_50'] < latest['sma_100']:
-                conditions['trend'] = 'bearish'
+        try:
+            # Trend analysis
+            if 'sma_50' in data.columns and 'sma_100' in data.columns:
+                if not pd.isna(latest['sma_50']) and not pd.isna(latest['sma_100']):
+                    if latest['close'] > latest['sma_50'] > latest['sma_100']:
+                        conditions['trend'] = 'bullish'
+                    elif latest['close'] < latest['sma_50'] < latest['sma_100']:
+                        conditions['trend'] = 'bearish'
+            
+            # Volatility analysis
+            if 'atr' in data.columns and len(data) >= 20:
+                recent_atr = data['atr'].tail(20).mean()
+                if not pd.isna(recent_atr):
+                    atr_80 = data['atr'].quantile(0.8)
+                    atr_20 = data['atr'].quantile(0.2)
+                    if recent_atr > atr_80:
+                        conditions['volatility'] = 'high'
+                    elif recent_atr < atr_20:
+                        conditions['volatility'] = 'low'
+            
+            # Volume analysis
+            if 'volume_ratio' in data.columns and not pd.isna(latest['volume_ratio']):
+                if latest['volume_ratio'] > 1.5:
+                    conditions['volume'] = 'high'
+                elif latest['volume_ratio'] < 0.5:
+                    conditions['volume'] = 'low'
+            
+            # Momentum analysis
+            if 'rsi_14' in data.columns and not pd.isna(latest['rsi_14']):
+                rsi = latest['rsi_14']
+                if rsi > 70:
+                    conditions['momentum'] = 'overbought'
+                elif rsi < 30:
+                    conditions['momentum'] = 'oversold'
         
-        # Volatility analysis
-        if 'atr' in data.columns:
-            recent_atr = data['atr'].tail(20).mean()
-            if recent_atr > data['atr'].quantile(0.8):
-                conditions['volatility'] = 'high'
-            elif recent_atr < data['atr'].quantile(0.2):
-                conditions['volatility'] = 'low'
-        
-        # Volume analysis
-        if 'volume_ratio' in data.columns:
-            if latest['volume_ratio'] > 1.5:
-                conditions['volume'] = 'high'
-            elif latest['volume_ratio'] < 0.5:
-                conditions['volume'] = 'low'
-        
-        # Momentum analysis
-        if 'rsi_14' in data.columns:
-            rsi = latest['rsi_14']
-            if rsi > 70:
-                conditions['momentum'] = 'overbought'
-            elif rsi < 30:
-                conditions['momentum'] = 'oversold'
+        except Exception as e:
+            print(f"⚠️ Market analysis error: {e}")
         
         return conditions
     
@@ -428,22 +451,24 @@ class EnhancedTradingBot:
         
         # Technical signals
         enhanced_data = self.engineer_features(bitcoin_data)
-        latest = enhanced_data.iloc[-1]
         
         technical_score = 0
-        if 'rsi_14' in enhanced_data.columns:
-            rsi = latest['rsi_14']
-            if rsi < 30:
-                technical_score += 1
-            elif rsi > 70:
-                technical_score -= 1
-        
-        if 'bb_position' in enhanced_data.columns:
-            bb_pos = latest['bb_position']
-            if bb_pos < 0.2:
-                technical_score += 1
-            elif bb_pos > 0.8:
-                technical_score -= 1
+        if len(enhanced_data) > 0:
+            latest = enhanced_data.iloc[-1]
+            
+            if 'rsi_14' in enhanced_data.columns and not pd.isna(latest['rsi_14']):
+                rsi = latest['rsi_14']
+                if rsi < 30:
+                    technical_score += 1
+                elif rsi > 70:
+                    technical_score -= 1
+            
+            if 'bb_position' in enhanced_data.columns and not pd.isna(latest['bb_position']):
+                bb_pos = latest['bb_position']
+                if bb_pos < 0.2:
+                    technical_score += 1
+                elif bb_pos > 0.8:
+                    technical_score -= 1
         
         signals['technical'] = np.clip(technical_score, -1, 1)
         
