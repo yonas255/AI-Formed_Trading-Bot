@@ -1,0 +1,17 @@
+{
+  "creation_date": "2025-06-22T02:11:23.707830",
+  "look_back": 60,
+  "models": [
+    "LSTM",
+    "GRU",
+    "CNN_LSTM",
+    "Deep_LSTM"
+  ],
+  "weights": {
+    "LSTM": 0.236819675600329,
+    "GRU": 0.38438228042758915,
+    "CNN_LSTM": 0.17364116921591968,
+    "Deep_LSTM": 0.2051568747561622
+  },
+  "performance": {}
+}

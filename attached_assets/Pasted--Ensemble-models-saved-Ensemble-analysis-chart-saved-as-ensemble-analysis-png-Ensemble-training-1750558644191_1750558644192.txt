@@ -1,0 +1,65 @@
+ Ensemble models saved
+ Ensemble analysis chart saved as 'ensemble_analysis.png'
+
+ Ensemble training completed!
+ Trained 4 models:
+   LSTM: MSE=0.002157, Weight=0.237
+   GRU: MSE=0.001329, Weight=0.384
+   CNN_LSTM: MSE=0.002942, Weight=0.174
+   Deep_LSTM: MSE=0.002490, Weight=0.205
+ Ensemble training completed!
+
+ STEP 3: Enhanced Bot Testing
+
+ Testing Enhanced Trading Bot...
+WARNING:absl:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
+ Enhanced LSTM model loaded
+ Loaded 54 enhanced features
+
+ Enhanced Trading Bot Cycle Starting...
+============================================================
+ Running enhanced trading analysis...
+ Enhanced trading cycle error: single positional indexer is out-of-bounds
+ Enhanced bot test failed: single positional indexer is out-of-bounds
+
+ STEP 4: Performance Report
+
+ Creating Performance Report...
+ Training Report Summary:
+    Training Completed: Enhanced Feature Model, Ensemble Models
+    Models Available: Enhanced LSTM, LSTM, GRU, CNN_LSTM, Deep_LSTM, Basic LSTM
+    Performance Metrics: {'enhanced_features': 54, 'ensemble_models': 4}
+
+======================================================================
+ ENHANCED TRAINING PIPELINE COMPLETE!
+======================================================================
+ Pipeline Success Rate: 3/4 (75.0%)
+
+ Step Results:
+    Enhanced Features: Success
+    Ensemble Models: Success
+    Bot Test: Failed
+    Report: Success
+
+ TRAINING SUCCESSFUL!
+Your enhanced trading bot is ready with:
+    Advanced technical analysis
+    Multiple AI models
+    Ensemble predictions
+    Enhanced risk management
+
+ Next Steps:
+1. Your bot will automatically use the enhanced models
+2. Check the performance charts generated
+3. Run your trading bot with confidence!
+
+
+   ✅ btc_enhanced_lstm_model.h5
+   ✅ enhanced_feature_scaler.pkl
+   ✅ enhanced_price_scaler.pkl
+   ✅ feature_names.pkl
+   ✅ ensemble_model_lstm.h5
+   ✅ ensemble_model_gru.h5
+   ✅ ensemble_weights.pkl
+   ✅ training_report.json
+   ✅ ensemble_analysis.png
