@@ -1,0 +1,9 @@
+{
+  "training_date": "2025-06-22T01:06:21.953015",
+  "days_of_data": 180,
+  "look_back": 60,
+  "model_type": "LSTM",
+  "layers": "3x LSTM + Dense",
+  "optimizer": "Adam",
+  "loss": "MSE"
+}
