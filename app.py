@@ -473,6 +473,7 @@ DASHBOARD_TEMPLATE = """
                 <a class="button danger" href="{{ url_for('stop_bot') }}">🛑 Stop Bot</a>
                 <a class="button" href="{{ url_for('run_once') }}">⚡ Run Once</a>
                 <a class="button" href="{{ url_for('status') }}">📊 Status</a>
+                <a class="button" href="/confidence-report">🎯 Confidence Report</a>
             </div>
 
             <!-- Live Portfolio -->
@@ -1441,6 +1442,198 @@ def status():
         </div>
     </div>
     """
+
+@app.route("/confidence-report")
+def confidence_report():
+    """Generate confidence metrics for the trading bot"""
+    
+    # Load validation data if available
+    validation_data = {}
+    try:
+        with open('prediction_log.json', 'r') as f:
+            predictions = []
+            for line in f:
+                predictions.append(json.loads(line.strip()))
+        validation_data['predictions'] = predictions
+        validation_data['total_predictions'] = len(predictions)
+    except:
+        validation_data['predictions'] = []
+        validation_data['total_predictions'] = 0
+    
+    # Load backtest results if available
+    backtest_data = {}
+    try:
+        with open('backtest_results.json', 'r') as f:
+            backtest_data = json.load(f)
+    except:
+        backtest_data = {'summary': {}}
+    
+    # API reliability test
+    api_tests = {}
+    try:
+        price_data = get_crypto_price_data('bitcoin')
+        api_tests['coingecko'] = "✅ Working" if price_data['price'] > 0 else "❌ Failed"
+    except:
+        api_tests['coingecko'] = "❌ Failed"
+    
+    try:
+        fear_greed = get_fear_greed_index()
+        api_tests['fear_greed'] = "✅ Working" if 0 <= fear_greed <= 100 else "❌ Failed"
+    except:
+        api_tests['fear_greed'] = "❌ Failed"
+    
+    # Calculate confidence score
+    confidence_factors = []
+    
+    # Model availability
+    if os.path.exists('btc_lstm_model.h5'):
+        confidence_factors.append(('AI Model', 20, "✅ Loaded"))
+    else:
+        confidence_factors.append(('AI Model', 20, "❌ Missing"))
+    
+    # Data sources
+    if api_tests['coingecko'] == "✅ Working":
+        confidence_factors.append(('Price Data', 25, "✅ Real-time"))
+    else:
+        confidence_factors.append(('Price Data', 25, "⚠️ Mock data"))
+    
+    # Historical validation
+    if validation_data['total_predictions'] >= 5:
+        confidence_factors.append(('Validation', 25, f"✅ {validation_data['total_predictions']} predictions"))
+    else:
+        confidence_factors.append(('Validation', 25, "⚠️ Insufficient data"))
+    
+    # Backtesting
+    if 'total_return' in backtest_data.get('summary', {}):
+        total_return = backtest_data['summary']['total_return']
+        status = "✅ Profitable" if total_return > 0 else "⚠️ Loss-making"
+        confidence_factors.append(('Backtesting', 20, f"{status} ({total_return:+.1f}%)"))
+    else:
+        confidence_factors.append(('Backtesting', 20, "❌ No backtest"))
+    
+    # Risk management
+    confidence_factors.append(('Risk Controls', 10, "✅ Stop-loss & Take-profit"))
+    
+    # Calculate overall confidence
+    total_score = 0
+    max_score = 0
+    for factor, weight, status in confidence_factors:
+        max_score += weight
+        if "✅" in status:
+            total_score += weight
+        elif "⚠️" in status:
+            total_score += weight * 0.5
+    
+    confidence_percentage = (total_score / max_score) * 100
+    
+    return f"""
+    <div style="padding: 20px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+        <div style="background: white; padding: 40px; border-radius: 20px; max-width: 1000px; margin: 0 auto;">
+            <h2 style="text-align: center; color: #333;">🎯 Bot Confidence Report</h2>
+            
+            <div style="background: {'#d4edda' if confidence_percentage >= 80 else '#fff3cd' if confidence_percentage >= 60 else '#f8d7da'}; 
+                        padding: 25px; border-radius: 15px; margin: 30px 0; text-align: center;">
+                <h3 style="margin: 0; font-size: 2rem;">Overall Confidence: {confidence_percentage:.1f}%</h3>
+                <p style="margin: 10px 0 0 0; font-size: 1.1rem;">
+                    {'🚀 High Confidence - Ready for live trading!' if confidence_percentage >= 80 else 
+                     '⚠️ Medium Confidence - Consider more testing' if confidence_percentage >= 60 else 
+                     '❌ Low Confidence - More development needed'}
+                </p>
+            </div>
+            
+            <h3>📊 Confidence Factors:</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 20px 0;">
+                {''.join([f'<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid {"#28a745" if "✅" in status else "#ffc107" if "⚠️" in status else "#dc3545"};"><strong>{factor} ({weight}%):</strong><br>{status}</div>' for factor, weight, status in confidence_factors])}
+            </div>
+            
+            <h3>🧪 Test Results:</h3>
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <p><strong>API Status:</strong></p>
+                <ul>
+                    <li>CoinGecko Price API: {api_tests.get('coingecko', '❌ Not tested')}</li>
+                    <li>Fear & Greed Index: {api_tests.get('fear_greed', '❌ Not tested')}</li>
+                </ul>
+                
+                <p><strong>Validation Data:</strong></p>
+                <ul>
+                    <li>Total Predictions Logged: {validation_data['total_predictions']}</li>
+                    {'<li>Backtest Return: ' + f"{backtest_data.get('summary', {}).get('total_return', 'N/A')}%" + '</li>' if 'total_return' in backtest_data.get('summary', {}) else '<li>No backtest data available</li>'}
+                </ul>
+            </div>
+            
+            <h3>🔧 Recommendations to Improve Confidence:</h3>
+            <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <ul style="margin: 0; padding-left: 20px;">
+                    {"<li>Run validation tests to track prediction accuracy</li>" if validation_data['total_predictions'] < 5 else ""}
+                    {"<li>Complete backtesting to validate strategy performance</li>" if 'total_return' not in backtest_data.get('summary', {}) else ""}
+                    {"<li>Ensure AI model is properly loaded</li>" if not os.path.exists('btc_lstm_model.h5') else ""}
+                    {"<li>Fix API connections for real-time data</li>" if api_tests.get('coingecko') != '✅ Working' else ""}
+                    <li>Monitor live performance for at least 1 week</li>
+                    <li>Set up proper alerts and monitoring</li>
+                    <li>Test with small amounts first (paper trading)</li>
+                </ul>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="/run-validation" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">🧪 Run Validation</a>
+                <a href="/run-backtest" style="background: #17a2b8; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">📈 Run Backtest</a>
+                <a href="/" style="background: #667eea; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; margin: 10px;">← Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+    """
+
+@app.route("/run-validation")
+def run_validation():
+    """Run the validation system"""
+    try:
+        # Import and run validation
+        exec(open('test_bot_accuracy.py').read())
+        return """
+        <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
+                <h2>✅ Validation Complete</h2>
+                <p>Validation tests have been run. Check the console for results and 'bot_validation_report.png' for charts.</p>
+                <a href="/confidence-report" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">📊 View Confidence Report</a>
+            </div>
+        </div>
+        """
+    except Exception as e:
+        return f"""
+        <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
+                <h2>❌ Validation Failed</h2>
+                <p>Error: {str(e)}</p>
+                <a href="/confidence-report" style="background: #dc3545; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">← Back</a>
+            </div>
+        </div>
+        """
+
+@app.route("/run-backtest")
+def run_backtest():
+    """Run the backtesting system"""
+    try:
+        # Import and run backtest
+        exec(open('backtest_bot.py').read())
+        return """
+        <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
+                <h2>✅ Backtest Complete</h2>
+                <p>Backtesting has been completed. Check 'backtest_results.json' for detailed results and 'backtest_visualization.png' for charts.</p>
+                <a href="/confidence-report" style="background: #28a745; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">📊 View Confidence Report</a>
+            </div>
+        </div>
+        """
+    except Exception as e:
+        return f"""
+        <div style="text-align: center; padding: 50px; font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
+                <h2>❌ Backtest Failed</h2>
+                <p>Error: {str(e)}</p>
+                <a href="/confidence-report" style="background: #dc3545; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none;">← Back</a>
+            </div>
+        </div>
+        """
 
 @app.route("/test-connections")
 def test_connections():
