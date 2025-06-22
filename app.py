@@ -1034,7 +1034,7 @@ def get_crypto_price_data(crypto_id):
             trend_factor = 1 + (i - 12) * 0.001  # Slight daily trend
             price_point = base_price * trend_factor * (1 + hourly_variation)
             mock_prices.append(price_point)
-            labels.append(f"{i:02d}:00")
+            mock_labels.append(f"{i:02d}:00")
 
         # Calculate realistic 24h change
         change_24h = ((mock_prices[-1] - mock_prices[0]) / mock_prices[0]) * 100
@@ -1044,7 +1044,7 @@ def get_crypto_price_data(crypto_id):
             'change_24h': change_24h,
             'historical': {
                 'prices': mock_prices,
-                'labels': labels
+                'labels': mock_labels
             }
         }
 
