@@ -679,44 +679,17 @@ DASHBOARD_TEMPLATE = """
         }
 
         function loadMockData() {
-            // Only load mock data if no real data is available after timeout
-            console.log('Waiting for real data... If no data arrives, showing loading state');
-
-            // Don't load mock data immediately - keep loading state
+            // Keep showing loading state - no mock data
+            console.log('Keeping loading state until real data arrives...');
+            
+            // Only show loading indicators, no mock data
             setTimeout(function() {
-                // Only show mock data if elements still show "Loading..."
                 const priceEl = document.getElementById('currentPrice');
                 if (priceEl && priceEl.textContent === 'Loading...') {
-                    console.log('Real data timeout - showing estimated market data');
-
-                    // Load realistic current market data only after timeout
-                    updatePriceDisplay({
-                        price: 102900,  // Current realistic BTC price
-                        change_24h: 1.23
-                    });
-
-                    // Load realistic sentiment data
-                    updateSentimentDisplay({
-                        score: 0.0000,
-                        positive: 0,
-                        negative: 0,
-                        neutral: 0
-                    });
-
-                    // Keep chart empty if no real data
-                    if (priceChart && priceChart.data.labels.length === 0) {
-                        const mockLabels = ['Loading...'];
-                        const mockPrices = [102900];
-
-                        updateChart({
-                            historical: {
-                                labels: mockLabels,
-                                prices: mockPrices
-                            }
-                        });
-                    }
+                    console.log('Still waiting for real data...');
+                    // Keep showing "Loading..." - don't replace with estimates
                 }
-            }, 15000); // Wait 15 seconds for real data before showing estimates
+            }, 30000); // Extended timeout but still show loading
         }
 
         function loadInitialState() {
@@ -908,13 +881,13 @@ DASHBOARD_TEMPLATE = """
 
         function updateTechnicalDisplay(data) {
             const rsiEl = document.getElementById('rsiValue');
-            if (rsiEl) rsiEl.textContent = data.rsi || '-';
+            if (rsiEl) rsiEl.textContent = data.rsi || 'Loading...';
 
             const macdEl = document.getElementById('macdValue');
-            if (macdEl) macdEl.textContent = data.macd_signal || 'HOLD';
+            if (macdEl) macdEl.textContent = data.macd_signal || 'Loading...';
 
             const aiEl = document.getElementById('aiValue');
-            if (aiEl) aiEl.textContent = data.ai_signal || 'HOLD';
+            if (aiEl) aiEl.textContent = data.ai_signal || 'Loading...';
 
             const predictedEl = document.getElementById('predictedPrice');
             if (predictedEl) {
@@ -925,14 +898,13 @@ DASHBOARD_TEMPLATE = """
                     const currentPrice = parseFloat(currentPriceText);
                     
                     if (Math.abs(data.predicted_price - currentPrice) < 100) {
-                        // Too close to current price, calculate a realistic estimate
-                        const estimate = currentPrice * (1 + (Math.random() * 0.04 - 0.02)); // ±2% variation
-                        predictedEl.textContent = '$' + Math.round(estimate).toLocaleString();
+                        // Too close to current price - show loading instead
+                        predictedEl.textContent = 'Loading...';
                     } else {
                         predictedEl.textContent = '$' + data.predicted_price.toLocaleString();
                     }
                 } else {
-                    predictedEl.textContent = 'API Limited';
+                    predictedEl.textContent = 'Loading...';
                 }
             }
 
@@ -1002,8 +974,8 @@ DASHBOARD_TEMPLATE = """
                     console.log('Requesting initial real data...');
                     socket.emit('request_initial_data', {crypto: currentCrypto});
                 } else {
-                    console.log('No connection yet - will load fallback data after timeout');
-                    loadMockData(); // This now waits 15 seconds before showing estimates
+                    console.log('No connection yet - keeping loading state');
+                    // Don't load any mock data - keep showing "Loading..."
                 }
             }, 3000);
         });
