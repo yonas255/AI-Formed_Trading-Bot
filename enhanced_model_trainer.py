@@ -7,19 +7,22 @@ from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import matplotlib.pyplot as plt
-import ta  # Technical Analysis library
+try:
+    import ta  # Technical Analysis library
+    TA_AVAILABLE = True
+except ImportError:
+    print("⚠️ ta library not available, using simplified features")
+    TA_AVAILABLE = False
 
 try:
     import tensorflow as tf
     from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization, Attention
+    from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization
     from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
     from tensorflow.keras.optimizers import Adam
     print("✅ TensorFlow loaded successfully")
 except ImportError:
-    print("❌ TensorFlow not found. Installing...")
-    import subprocess
-    subprocess.check_call(['pip', 'install', 'tensorflow', 'ta'])
+    print("❌ TensorFlow not found")
     import tensorflow as tf
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization
@@ -124,56 +127,90 @@ class EnhancedModelTrainer:
             df[f'ema_{period}'] = df['close'].ewm(span=period).mean()
             df[f'price_to_sma_{period}'] = df['close'] / df[f'sma_{period}']
         
-        # RSI
-        df['rsi_14'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
-        df['rsi_30'] = ta.momentum.RSIIndicator(df['close'], window=30).rsi()
-        
-        # MACD
-        macd = ta.trend.MACD(df['close'])
-        df['macd'] = macd.macd()
-        df['macd_signal'] = macd.macd_signal()
-        df['macd_histogram'] = macd.macd_diff()
-        
-        # Bollinger Bands
-        bollinger = ta.volatility.BollingerBands(df['close'])
-        df['bb_upper'] = bollinger.bollinger_hband()
-        df['bb_lower'] = bollinger.bollinger_lband()
-        df['bb_middle'] = bollinger.bollinger_mavg()
-        df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
-        df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
-        
-        # Stochastic Oscillator
-        stoch = ta.momentum.StochasticOscillator(df['high'], df['low'], df['close'])
-        df['stoch_k'] = stoch.stoch()
-        df['stoch_d'] = stoch.stoch_signal()
-        
-        # Williams %R
-        df['williams_r'] = ta.momentum.WilliamsRIndicator(df['high'], df['low'], df['close']).williams_r()
-        
-        # Average True Range (ATR)
-        df['atr'] = ta.volatility.AverageTrueRange(df['high'], df['low'], df['close']).average_true_range()
+        if TA_AVAILABLE:
+            # Advanced indicators with ta library
+            # RSI
+            df['rsi_14'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+            df['rsi_30'] = ta.momentum.RSIIndicator(df['close'], window=30).rsi()
+            
+            # MACD
+            macd = ta.trend.MACD(df['close'])
+            df['macd'] = macd.macd()
+            df['macd_signal'] = macd.macd_signal()
+            df['macd_histogram'] = macd.macd_diff()
+            
+            # Bollinger Bands
+            bollinger = ta.volatility.BollingerBands(df['close'])
+            df['bb_upper'] = bollinger.bollinger_hband()
+            df['bb_lower'] = bollinger.bollinger_lband()
+            df['bb_middle'] = bollinger.bollinger_mavg()
+            df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
+            df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+            
+            # Stochastic Oscillator
+            stoch = ta.momentum.StochasticOscillator(df['high'], df['low'], df['close'])
+            df['stoch_k'] = stoch.stoch()
+            df['stoch_d'] = stoch.stoch_signal()
+            
+            # Williams %R
+            df['williams_r'] = ta.momentum.WilliamsRIndicator(df['high'], df['low'], df['close']).williams_r()
+            
+            # Average True Range (ATR)
+            df['atr'] = ta.volatility.AverageTrueRange(df['high'], df['low'], df['close']).average_true_range()
+            
+            # On-Balance Volume
+            df['obv'] = ta.volume.OnBalanceVolumeIndicator(df['close'], df['volume']).on_balance_volume()
+            
+            # Commodity Channel Index
+            df['cci'] = ta.trend.CCIIndicator(df['high'], df['low'], df['close']).cci()
+            
+            # Rate of Change
+            df['roc'] = ta.momentum.ROCIndicator(df['close']).roc()
+            
+            # Money Flow Index
+            df['mfi'] = ta.volume.MFIIndicator(df['high'], df['low'], df['close'], df['volume']).money_flow_index()
+            
+            # Ichimoku indicators
+            ichimoku = ta.trend.IchimokuIndicator(df['high'], df['low'])
+            df['ichimoku_a'] = ichimoku.ichimoku_a()
+            df['ichimoku_b'] = ichimoku.ichimoku_b()
+        else:
+            # Simplified indicators without ta library
+            print("⚠️ Using simplified technical indicators")
+            
+            # Simple RSI calculation
+            def calculate_rsi(series, window=14):
+                delta = series.diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+                rs = gain / loss
+                return 100 - (100 / (1 + rs))
+            
+            df['rsi_14'] = calculate_rsi(df['close'], 14)
+            df['rsi_30'] = calculate_rsi(df['close'], 30)
+            
+            # Simple Bollinger Bands
+            bb_middle = df['close'].rolling(window=20).mean()
+            bb_std = df['close'].rolling(window=20).std()
+            df['bb_upper'] = bb_middle + (bb_std * 2)
+            df['bb_lower'] = bb_middle - (bb_std * 2)
+            df['bb_middle'] = bb_middle
+            df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
+            df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+            
+            # Simple momentum indicators
+            df['momentum_10'] = df['close'] / df['close'].shift(10)
+            df['momentum_20'] = df['close'] / df['close'].shift(20)
+            df['price_range'] = df['high'] - df['low']
+            df['true_range'] = np.maximum(df['high'] - df['low'], 
+                                        np.maximum(abs(df['high'] - df['close'].shift(1)),
+                                                 abs(df['low'] - df['close'].shift(1))))
+            df['atr'] = df['true_range'].rolling(window=14).mean()
         
         # Volume features
         df['volume_sma'] = df['volume'].rolling(window=20).mean()
         df['volume_ratio'] = df['volume'] / df['volume_sma']
         df['price_volume'] = df['close'] * df['volume']
-        
-        # On-Balance Volume
-        df['obv'] = ta.volume.OnBalanceVolumeIndicator(df['close'], df['volume']).on_balance_volume()
-        
-        # Commodity Channel Index
-        df['cci'] = ta.trend.CCIIndicator(df['high'], df['low'], df['close']).cci()
-        
-        # Rate of Change
-        df['roc'] = ta.momentum.ROCIndicator(df['close']).roc()
-        
-        # Money Flow Index
-        df['mfi'] = ta.volume.MFIIndicator(df['high'], df['low'], df['close'], df['volume']).money_flow_index()
-        
-        # Ichimoku indicators
-        ichimoku = ta.trend.IchimokuIndicator(df['high'], df['low'])
-        df['ichimoku_a'] = ichimoku.ichimoku_a()
-        df['ichimoku_b'] = ichimoku.ichimoku_b()
         
         # Support/Resistance levels
         df['support'] = df['low'].rolling(window=20).min()
@@ -202,10 +239,10 @@ class EnhancedModelTrainer:
         df = df.dropna()
         
         # Select feature columns (exclude original OHLCV and target)
-        feature_columns = [col for col in df.columns if col not in ['open', 'high', 'low', 'close', 'volume', 'market_cap']]
+        feature_columns = [col for col in df.columns if col not in ['open', 'high', 'low', 'close', 'volume', 'market_cap', 'timestamp']]
         self.feature_names = feature_columns
         
-        print(f"✅ Created {len(feature_columns)} advanced features")
+        print(f"✅ Created {len(feature_columns)} {'advanced' if TA_AVAILABLE else 'simplified'} features")
         print(f"📊 Features: {feature_columns[:10]}... (showing first 10)")
         
         return df

@@ -13,13 +13,17 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 try:
     from tensorflow.keras.models import load_model
-    import ta
+    TF_AVAILABLE = True
 except ImportError:
-    print("Installing required packages...")
-    import subprocess
-    subprocess.check_call(['pip', 'install', 'tensorflow', 'ta'])
-    from tensorflow.keras.models import load_model
+    print("⚠️ TensorFlow not available")
+    TF_AVAILABLE = False
+
+try:
     import ta
+    TA_AVAILABLE = True
+except ImportError:
+    print("⚠️ ta library not available, using simplified features")
+    TA_AVAILABLE = False
 
 class EnhancedTradingBot:
     def __init__(self):
@@ -163,42 +167,70 @@ class EnhancedTradingBot:
             df[f'price_to_sma_{period}'] = df['close'] / df[f'sma_{period}']
         
         # Technical indicators
-        df['rsi_14'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
-        df['rsi_30'] = ta.momentum.RSIIndicator(df['close'], window=30).rsi()
-        
-        macd = ta.trend.MACD(df['close'])
-        df['macd'] = macd.macd()
-        df['macd_signal'] = macd.macd_signal()
-        df['macd_histogram'] = macd.macd_diff()
-        
-        bollinger = ta.volatility.BollingerBands(df['close'])
-        df['bb_upper'] = bollinger.bollinger_hband()
-        df['bb_lower'] = bollinger.bollinger_lband()
-        df['bb_middle'] = bollinger.bollinger_mavg()
-        df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
-        df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
-        
-        stoch = ta.momentum.StochasticOscillator(df['high'], df['low'], df['close'])
-        df['stoch_k'] = stoch.stoch()
-        df['stoch_d'] = stoch.stoch_signal()
-        
-        df['williams_r'] = ta.momentum.WilliamsRIndicator(df['high'], df['low'], df['close']).williams_r()
-        df['atr'] = ta.volatility.AverageTrueRange(df['high'], df['low'], df['close']).average_true_range()
+        if TA_AVAILABLE:
+            df['rsi_14'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+            df['rsi_30'] = ta.momentum.RSIIndicator(df['close'], window=30).rsi()
+            
+            macd = ta.trend.MACD(df['close'])
+            df['macd'] = macd.macd()
+            df['macd_signal'] = macd.macd_signal()
+            df['macd_histogram'] = macd.macd_diff()
+            
+            bollinger = ta.volatility.BollingerBands(df['close'])
+            df['bb_upper'] = bollinger.bollinger_hband()
+            df['bb_lower'] = bollinger.bollinger_lband()
+            df['bb_middle'] = bollinger.bollinger_mavg()
+            df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
+            df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+            
+            stoch = ta.momentum.StochasticOscillator(df['high'], df['low'], df['close'])
+            df['stoch_k'] = stoch.stoch()
+            df['stoch_d'] = stoch.stoch_signal()
+            
+            df['williams_r'] = ta.momentum.WilliamsRIndicator(df['high'], df['low'], df['close']).williams_r()
+            df['atr'] = ta.volatility.AverageTrueRange(df['high'], df['low'], df['close']).average_true_range()
+            
+            df['obv'] = ta.volume.OnBalanceVolumeIndicator(df['close'], df['volume']).on_balance_volume()
+            df['cci'] = ta.trend.CCIIndicator(df['high'], df['low'], df['close']).cci()
+            df['roc'] = ta.momentum.ROCIndicator(df['close']).roc()
+            df['mfi'] = ta.volume.MFIIndicator(df['high'], df['low'], df['close'], df['volume']).money_flow_index()
+            
+            ichimoku = ta.trend.IchimokuIndicator(df['high'], df['low'])
+            df['ichimoku_a'] = ichimoku.ichimoku_a()
+            df['ichimoku_b'] = ichimoku.ichimoku_b()
+        else:
+            # Simple RSI calculation
+            def calculate_rsi(series, window=14):
+                delta = series.diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+                rs = gain / loss
+                return 100 - (100 / (1 + rs))
+            
+            df['rsi_14'] = calculate_rsi(df['close'], 14)
+            df['rsi_30'] = calculate_rsi(df['close'], 30)
+            
+            # Simple Bollinger Bands
+            bb_middle = df['close'].rolling(window=20).mean()
+            bb_std = df['close'].rolling(window=20).std()
+            df['bb_upper'] = bb_middle + (bb_std * 2)
+            df['bb_lower'] = bb_middle - (bb_std * 2)
+            df['bb_middle'] = bb_middle
+            df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
+            df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+            
+            # Simple momentum and volatility
+            df['momentum_10'] = df['close'] / df['close'].shift(10)
+            df['price_range'] = df['high'] - df['low']
+            df['true_range'] = np.maximum(df['high'] - df['low'], 
+                                        np.maximum(abs(df['high'] - df['close'].shift(1)),
+                                                 abs(df['low'] - df['close'].shift(1))))
+            df['atr'] = df['true_range'].rolling(window=14).mean()
         
         # Volume features
         df['volume_sma'] = df['volume'].rolling(window=20).mean()
         df['volume_ratio'] = df['volume'] / df['volume_sma']
         df['price_volume'] = df['close'] * df['volume']
-        df['obv'] = ta.volume.OnBalanceVolumeIndicator(df['close'], df['volume']).on_balance_volume()
-        
-        # Additional indicators
-        df['cci'] = ta.trend.CCIIndicator(df['high'], df['low'], df['close']).cci()
-        df['roc'] = ta.momentum.ROCIndicator(df['close']).roc()
-        df['mfi'] = ta.volume.MFIIndicator(df['high'], df['low'], df['close'], df['volume']).money_flow_index()
-        
-        ichimoku = ta.trend.IchimokuIndicator(df['high'], df['low'])
-        df['ichimoku_a'] = ichimoku.ichimoku_a()
-        df['ichimoku_b'] = ichimoku.ichimoku_b()
         
         # Support/Resistance
         df['support'] = df['low'].rolling(window=20).min()

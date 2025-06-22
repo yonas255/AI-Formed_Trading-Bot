@@ -17,3 +17,5 @@ tensorflow
 flask-socketio
 flask-socketio
 flask-socketio
+ta
+ta
