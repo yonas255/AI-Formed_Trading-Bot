@@ -1,0 +1,1 @@
+2025-06-22 02:18:47.283087 | HOLD | Price: $102261.35 | Confidence: 0.25 | USD: $1000.00 | BTC: 0.000000 | Signals: {'sentiment': 1, 'technical': np.int64(0), 'prediction': 0, 'market_structure': 0}
