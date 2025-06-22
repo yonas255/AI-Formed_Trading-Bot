@@ -900,7 +900,7 @@ DASHBOARD_TEMPLATE = """
                     console.warn('Socket.IO not loaded, showing loading state');
                     setTimeout(loadInitialState, 2000);
                 }
-            } catch (error) {
+                    } catch (error) {
                 console.error('WebSocket connection error:', error);
                 setTimeout(loadInitialState, 2000);
             }
