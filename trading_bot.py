@@ -242,65 +242,126 @@ def run_trading_bot():
     # Calculate market indicators for realistic trading
     price_change_pct = (predicted_price - btc_price) / btc_price if predicted_price > 0 else 0
     
-    # Multi-factor scoring system
-    buy_score = 0
-    sell_score = 0
+    # Enhanced multi-factor scoring system with equal weight for buy/sell
+    buy_signals = 0
+    sell_signals = 0
+    buy_strength = 0.0
+    sell_strength = 0.0
     
-    # Sentiment scoring (more conservative)
-    if sentiment_score > 0.4:
-        buy_score += 3
-    elif sentiment_score > 0.25:
-        buy_score += 1
-    elif sentiment_score < -0.25:
-        sell_score += 1
-    elif sentiment_score < -0.4:
-        sell_score += 3
+    # More realistic sentiment scoring with lower thresholds
+    if sentiment_score > 0.3:  # Strong positive sentiment
+        buy_signals += 2
+        buy_strength += 0.4
+    elif sentiment_score > 0.15:  # Moderate positive sentiment
+        buy_signals += 1
+        buy_strength += 0.2
+    elif sentiment_score < -0.15:  # Moderate negative sentiment
+        sell_signals += 1
+        sell_strength += 0.2
+    elif sentiment_score < -0.3:  # Strong negative sentiment
+        sell_signals += 2
+        sell_strength += 0.4
     
-    # Price prediction scoring
-    if price_change_pct > 0.025:  # 2.5% predicted gain
-        buy_score += 3
-    elif price_change_pct > 0.01:  # 1% predicted gain
-        buy_score += 1
-    elif price_change_pct < -0.025:  # 2.5% predicted drop
-        sell_score += 3
-    elif price_change_pct < -0.01:  # 1% predicted drop
-        sell_score += 1
+    # Enhanced price prediction scoring with realistic thresholds
+    if price_change_pct > 0.02:  # 2% predicted gain
+        buy_signals += 2
+        buy_strength += 0.3
+    elif price_change_pct > 0.008:  # 0.8% predicted gain
+        buy_signals += 1
+        buy_strength += 0.15
+    elif price_change_pct < -0.008:  # 0.8% predicted drop
+        sell_signals += 1
+        sell_strength += 0.15
+    elif price_change_pct < -0.02:  # 2% predicted drop
+        sell_signals += 2
+        sell_strength += 0.3
     
-    # Position management and risk assessment
+    # Market momentum analysis (using recent price changes)
+    recent_momentum = (btc_price - historical_prices.iloc[-5:].mean()) / historical_prices.iloc[-5:].mean()
+    if recent_momentum > 0.015:  # Strong upward momentum
+        buy_signals += 1
+        buy_strength += 0.2
+    elif recent_momentum < -0.015:  # Strong downward momentum
+        sell_signals += 1
+        sell_strength += 0.2
+    
+    # Enhanced position management with realistic profit targets
     if btc_balance > 0 and average_buy_price > 0:
-        current_profit = (btc_price - average_buy_price) / average_buy_price
+        current_profit_pct = (btc_price - average_buy_price) / average_buy_price
         
-        # Profit taking at realistic levels
-        if current_profit > 0.12:  # 12% profit
-            sell_score += 4
-        elif current_profit > 0.06:  # 6% profit
-            sell_score += 2
-        elif current_profit < -0.08:  # 8% loss - cut losses
-            sell_score += 3
+        # Profit taking with graduated selling
+        if current_profit_pct > 0.08:  # 8% profit - start taking profits
+            sell_signals += 2
+            sell_strength += 0.3
+        elif current_profit_pct > 0.04:  # 4% profit - consider selling
+            sell_signals += 1
+            sell_strength += 0.15
+        elif current_profit_pct < -0.04:  # 4% loss - risk management
+            sell_signals += 1
+            sell_strength += 0.2
+        elif current_profit_pct < -0.07:  # 7% loss - cut losses
+            sell_signals += 2
+            sell_strength += 0.4
     
-    # Conservative position sizing
-    max_position_pct = 0.12  # 12% max per trade
-    position_size = min(usd_balance * max_position_pct, 150)  # Max $150 per trade
+    # Market fear assessment (simulate VIX-like indicator)
+    price_volatility = historical_prices.rolling(10).std().iloc[-1] / historical_prices.rolling(10).mean().iloc[-1]
+    if price_volatility > 0.04:  # High volatility - be cautious
+        if buy_signals > sell_signals:
+            buy_strength *= 0.7  # Reduce buy confidence in volatile markets
+        else:
+            sell_strength *= 1.2  # Increase sell urgency in volatile markets
     
-    # Execute trades with higher thresholds
-    if buy_score >= 4 and usd_balance >= position_size and position_size >= 50:
+    # Calculate total signal strength
+    total_buy_strength = buy_signals * 0.3 + buy_strength
+    total_sell_strength = sell_signals * 0.3 + sell_strength
+    
+    # Enhanced position sizing with risk management
+    max_position_pct = 0.10  # 10% max per trade
+    position_size = min(usd_balance * max_position_pct, 120)  # Max $120 per trade
+    
+    # More balanced execution thresholds
+    if total_buy_strength >= 1.0 and usd_balance >= position_size and position_size >= 50:
+        # Dynamic position sizing based on signal strength
+        confidence_multiplier = min(total_buy_strength / 2.0, 1.0)
+        actual_position = position_size * confidence_multiplier
+        
         action = "BUY"
-        btc_bought = position_size / btc_price
-        usd_balance -= position_size
+        btc_bought = actual_position / btc_price
+        usd_balance -= actual_position
         btc_balance += btc_bought
+        
+        # Update average buy price
         if btc_balance > btc_bought:
-            average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
+            total_invested = (btc_balance - btc_bought) * average_buy_price + actual_position
+            average_buy_price = total_invested / btc_balance
         else:
             average_buy_price = btc_price
-    elif sell_score >= 3 and btc_balance >= 0.0005:
-        # Sell percentage based on signal strength
-        sell_ratio = min(0.4, sell_score / 10)  # Sell 10-40% based on signal
+            
+    elif total_sell_strength >= 1.0 and btc_balance >= 0.0005:
+        # Graduated selling based on signal strength and profit levels
+        if btc_balance > 0 and average_buy_price > 0:
+            current_profit_pct = (btc_price - average_buy_price) / average_buy_price
+            
+            # Sell percentage based on signal strength and profit
+            if current_profit_pct > 0.06:  # Good profit
+                sell_ratio = min(0.5, total_sell_strength / 2.0)  # Sell up to 50%
+            elif current_profit_pct > 0.02:  # Small profit
+                sell_ratio = min(0.3, total_sell_strength / 2.5)  # Sell up to 30%
+            elif current_profit_pct < -0.05:  # Loss cutting
+                sell_ratio = min(0.6, total_sell_strength / 1.5)  # Sell up to 60%
+            else:  # Neutral territory
+                sell_ratio = min(0.25, total_sell_strength / 3.0)  # Sell up to 25%
+        else:
+            sell_ratio = min(0.3, total_sell_strength / 2.0)
+        
         sell_amount = btc_balance * sell_ratio
         action = "SELL"
         usd_gained = sell_amount * btc_price
         btc_balance -= sell_amount
         usd_balance += usd_gained
-        if btc_balance <= 0.00001:  # Essentially zero
+        
+        # Reset average buy price if position is closed
+        if btc_balance <= 0.00001:
             btc_balance = 0
             average_buy_price = 0.0
     elif btc_balance >= 0.001:
@@ -315,9 +376,14 @@ def run_trading_bot():
             btc_balance -= 0.001
             usd_balance += usd_gained
 
-    # Log the trade
+    # Enhanced logging with signal analysis
     with open("sentiment_trade_log.txt", "a") as f:
-        f.write(f"{datetime.utcnow()} | Action: {action} | Sentiment: {sentiment_score:.4f} | Predicted BTC: ${predicted_price:.2f} | BTC: ${btc_price:.2f} | USD: ${usd_balance:.2f} | BTC Bal: {btc_balance:.6f}\n")
+        f.write(f"{datetime.utcnow()} | Action: {action} | Sentiment: {sentiment_score:.4f} | "
+               f"Buy Signals: {buy_signals} (Strength: {total_buy_strength:.2f}) | "
+               f"Sell Signals: {sell_signals} (Strength: {total_sell_strength:.2f}) | "
+               f"Predicted: ${predicted_price:.2f} | Current: ${btc_price:.2f} | "
+               f"USD: ${usd_balance:.2f} | BTC: {btc_balance:.6f} | "
+               f"Profit: {((btc_price - average_buy_price) / average_buy_price * 100) if average_buy_price > 0 else 0:.2f}%\n")
 
     log_trade_to_google_sheets(sheet, action, sentiment_score, predicted_price, btc_price, usd_balance, btc_balance)
 
