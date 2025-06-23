@@ -2059,54 +2059,46 @@ def run_trading_bot_with_results():
             btc_balance -= 0.001
             usd_balance += usd_gained
 
-        # Log to file and Google Sheets
-        try:
-            with open("sentiment_trade_log.txt", "a") as f:
-                f.write(f"{datetime.now()} | Action: {action} | Sentiment: {sentiment_score:.4f} | RSI: {rsi:.1f} | Predicted BTC: ${predicted_price:.2f} | BTC: ${btc_price:.2f} | USD: ${usd_balance:.2f} | BTC Bal: {btc_balance:.6f}\n")
+    # Log to file and Google Sheets
+    try:
+        with open("sentiment_trade_log.txt", "a") as f:
+            f.write(f"{datetime.now()} | Action: {action} | Sentiment: {sentiment_score:.4f} | RSI: {rsi:.1f} | Predicted BTC: ${predicted_price:.2f} | BTC: ${btc_price:.2f} | USD: ${usd_balance:.2f} | BTC Bal: {btc_balance:.6f}\n")
 
-            log_trade_to_google_sheets(sheet, action, sentiment_score, predicted_price, btc_price, usd_balance, btc_balance)
-        except Exception as e:
-            print(f"⚠️ Logging error: {e}")
-
-        # Send email for significant actions
-        if action in ["BUY", "SELL", "STOP-LOSS", "TAKE-PROFIT"]:
-            try:
-                send_email_alert(
-                    f"[Enhanced Crypto Bot] {action} Signal",
-                    f"Enhanced Analysis:\nAction: {action}\nSentiment: {sentiment_score:.4f}\nRSI: {rsi:.1f}\nPredicted: ${predicted_price:.2f}\nBTC Now: ${btc_price:.2f}\nUSD Balance: ${usd_balance:.2f}\nBTC Balance: {btc_balance:.6f}\nBuy Signals: {buy_signals}\nSell Signals: {sell_signals}"
-                )
-                email_sent = True
-            except Exception as e:
-                print(f"⚠️ Email error: {e}")
-                email_sent = False
-
-        # Return enhanced results
-        return {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "sentiment_score": sentiment_score,
-            "pos_count": pos,
-            "neg_count": neg,
-            "neu_count": neu,
-            "total_posts": total_posts,
-            "predicted_price": predicted_price,
-            "btc_price": btc_price,
-            "action": action,
-            "usd_balance": usd_balance,
-            "btc_balance": btc_balance,
-            "email_sent": email_sent,
-            "rsi": rsi,
-            "buy_signals": buy_signals,
-            "sell_signals": sell_signals,
-            "technical_data": technical_data
-        }
-
+        log_trade_to_google_sheets(sheet, action, sentiment_score, predicted_price, btc_price, usd_balance, btc_balance)
     except Exception as e:
-        print(f"❌ Critical error in run_trading_bot_with_results: {e}")
-        return {
-            "error": str(e),
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "action": "ERROR"
-        }
+        print(f"⚠️ Logging error: {e}")
+
+    # Send email for significant actions
+    if action in ["BUY", "SELL", "STOP-LOSS", "TAKE-PROFIT"]:
+        try:
+            send_email_alert(
+                f"[Enhanced Crypto Bot] {action} Signal",
+                f"Enhanced Analysis:\nAction: {action}\nSentiment: {sentiment_score:.4f}\nRSI: {rsi:.1f}\nPredicted: ${predicted_price:.2f}\nBTC Now: ${btc_price:.2f}\nUSD Balance: ${usd_balance:.2f}\nBTC Balance: {btc_balance:.6f}\nBuy Signals: {buy_signals}\nSell Signals: {sell_signals}"
+            )
+            email_sent = True
+        except Exception as e:
+            print(f"⚠️ Email error: {e}")
+            email_sent = False
+
+    # Return enhanced results
+    return {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "sentiment_score": sentiment_score,
+        "pos_count": pos,
+        "neg_count": neg,
+        "neu_count": neu,
+        "total_posts": total_posts,
+        "predicted_price": predicted_price,
+        "btc_price": btc_price,
+        "action": action,
+        "usd_balance": usd_balance,
+        "btc_balance": btc_balance,
+        "email_sent": email_sent,
+        "rsi": rsi,
+        "buy_signals": buy_signals,
+        "sell_signals": sell_signals,
+        "technical_data": technical_data
+    }
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
