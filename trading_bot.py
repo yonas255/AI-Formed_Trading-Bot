@@ -239,23 +239,69 @@ def run_trading_bot():
 
     action = "HOLD"
     
-    # More realistic trading conditions
-    if sentiment_score > 0.2 and predicted_price > btc_price * 1.005 and usd_balance >= 100:
+    # Calculate market indicators for realistic trading
+    price_change_pct = (predicted_price - btc_price) / btc_price if predicted_price > 0 else 0
+    
+    # Multi-factor scoring system
+    buy_score = 0
+    sell_score = 0
+    
+    # Sentiment scoring (more conservative)
+    if sentiment_score > 0.4:
+        buy_score += 3
+    elif sentiment_score > 0.25:
+        buy_score += 1
+    elif sentiment_score < -0.25:
+        sell_score += 1
+    elif sentiment_score < -0.4:
+        sell_score += 3
+    
+    # Price prediction scoring
+    if price_change_pct > 0.025:  # 2.5% predicted gain
+        buy_score += 3
+    elif price_change_pct > 0.01:  # 1% predicted gain
+        buy_score += 1
+    elif price_change_pct < -0.025:  # 2.5% predicted drop
+        sell_score += 3
+    elif price_change_pct < -0.01:  # 1% predicted drop
+        sell_score += 1
+    
+    # Position management and risk assessment
+    if btc_balance > 0 and average_buy_price > 0:
+        current_profit = (btc_price - average_buy_price) / average_buy_price
+        
+        # Profit taking at realistic levels
+        if current_profit > 0.12:  # 12% profit
+            sell_score += 4
+        elif current_profit > 0.06:  # 6% profit
+            sell_score += 2
+        elif current_profit < -0.08:  # 8% loss - cut losses
+            sell_score += 3
+    
+    # Conservative position sizing
+    max_position_pct = 0.12  # 12% max per trade
+    position_size = min(usd_balance * max_position_pct, 150)  # Max $150 per trade
+    
+    # Execute trades with higher thresholds
+    if buy_score >= 4 and usd_balance >= position_size and position_size >= 50:
         action = "BUY"
-        btc_bought = 100 / btc_price
-        usd_balance -= 100
+        btc_bought = position_size / btc_price
+        usd_balance -= position_size
         btc_balance += btc_bought
-        average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
-    elif btc_balance >= 0.001 and (
-        sentiment_score < -0.1 or  # Less negative sentiment needed
-        predicted_price < btc_price * 0.995 or  # Smaller price drop prediction
-        (average_buy_price > 0 and (btc_price - average_buy_price) / average_buy_price > 0.03)  # 3% profit taking
-    ):
+        if btc_balance > btc_bought:
+            average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
+        else:
+            average_buy_price = btc_price
+    elif sell_score >= 3 and btc_balance >= 0.0005:
+        # Sell percentage based on signal strength
+        sell_ratio = min(0.4, sell_score / 10)  # Sell 10-40% based on signal
+        sell_amount = btc_balance * sell_ratio
         action = "SELL"
-        usd_gained = 0.001 * btc_price
-        btc_balance -= 0.001
+        usd_gained = sell_amount * btc_price
+        btc_balance -= sell_amount
         usd_balance += usd_gained
-        if btc_balance == 0:
+        if btc_balance <= 0.00001:  # Essentially zero
+            btc_balance = 0
             average_buy_price = 0.0
     elif btc_balance >= 0.001:
         if btc_price <= average_buy_price * 0.95:

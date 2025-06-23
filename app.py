@@ -2092,42 +2092,97 @@ def run_trading_bot_with_results():
     # Enhanced trading logic with multiple indicators
     buy_signals = 0
     sell_signals = 0
+    signal_strength = 0.0
 
-    # More balanced sentiment signals
-    if sentiment_score > 0.2:
+    # More realistic sentiment thresholds
+    if sentiment_score > 0.4:  # Stronger positive sentiment required
+        buy_signals += 2
+        signal_strength += 0.3
+    elif sentiment_score > 0.2:
         buy_signals += 1
-    elif sentiment_score < -0.1:  # Less restrictive
+        signal_strength += 0.1
+    elif sentiment_score < -0.2:  # More negative sentiment needed
         sell_signals += 1
+        signal_strength += 0.1
+    elif sentiment_score < -0.4:
+        sell_signals += 2
+        signal_strength += 0.3
 
-    # More balanced price prediction signals
-    if predicted_price > btc_price * 1.005:  # 0.5% gain
+    # More conservative price prediction signals
+    price_change_pct = (predicted_price - btc_price) / btc_price
+    if price_change_pct > 0.02:  # 2% predicted gain
+        buy_signals += 2
+        signal_strength += 0.4
+    elif price_change_pct > 0.01:  # 1% predicted gain
         buy_signals += 1
-    elif predicted_price < btc_price * 0.995:  # 0.5% drop
+        signal_strength += 0.2
+    elif price_change_pct < -0.02:  # 2% predicted drop
+        sell_signals += 2
+        signal_strength += 0.4
+    elif price_change_pct < -0.01:  # 1% predicted drop
         sell_signals += 1
+        signal_strength += 0.2
 
-    # RSI signals (unchanged)
-    if rsi < 30:
+    # Enhanced RSI signals with zones
+    if rsi < 25:  # Extremely oversold
+        buy_signals += 3
+        signal_strength += 0.5
+    elif rsi < 35:  # Oversold
         buy_signals += 1
-    elif rsi > 70:
+        signal_strength += 0.2
+    elif rsi > 75:  # Extremely overbought
+        sell_signals += 3
+        signal_strength += 0.5
+    elif rsi > 65:  # Overbought
         sell_signals += 1
+        signal_strength += 0.2
 
-    # Additional profit-taking signal
+    # Market volatility consideration
+    recent_volatility = abs(price_change_pct) if price_change_pct else 0.01
+    if recent_volatility > 0.05:  # High volatility - reduce position size
+        signal_strength *= 0.6
+    elif recent_volatility < 0.01:  # Low volatility - can increase confidence
+        signal_strength *= 1.2
+
+    # Risk management - profit taking with realistic targets
     if btc_balance > 0 and average_buy_price > 0:
         profit_percentage = (btc_price - average_buy_price) / average_buy_price
-        if profit_percentage > 0.05:  # 5% profit
+        if profit_percentage > 0.15:  # 15% profit - strong sell signal
+            sell_signals += 3
+            signal_strength += 0.6
+        elif profit_percentage > 0.08:  # 8% profit - moderate sell signal
             sell_signals += 1
+            signal_strength += 0.3
+        elif profit_percentage < -0.05:  # 5% loss - consider cutting losses
+            sell_signals += 1
+            signal_strength += 0.2
 
-    # Execute trades based on signals (only need 1 signal now)
-    if buy_signals >= 1 and usd_balance >= 100:
+    # Dynamic position sizing based on confidence and market conditions
+    max_position_pct = 0.15  # Max 15% of balance per trade
+    min_position = 50  # Minimum $50 trade
+    
+    # Calculate realistic position size
+    base_position = usd_balance * max_position_pct
+    confidence_adjusted = base_position * min(signal_strength, 1.0)
+    position_size = max(min_position, min(confidence_adjusted, base_position))
+
+    # More stringent trading requirements
+    if buy_signals >= 3 and signal_strength >= 0.4 and usd_balance >= position_size:
         action = "BUY"
-        btc_bought = 100 / btc_price
-        usd_balance -= 100
+        btc_bought = position_size / btc_price
+        usd_balance -= position_size
         btc_balance += btc_bought
-        average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
-    elif sell_signals >= 1 and btc_balance >= 0.001:
+        if btc_balance > btc_bought:  # Not first purchase
+            average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
+        else:  # First purchase
+            average_buy_price = btc_price
+    elif sell_signals >= 2 and signal_strength >= 0.3 and btc_balance >= 0.001:
+        # Sell a percentage based on signal strength, not fixed amount
+        sell_percentage = min(0.5, signal_strength)  # Sell up to 50% based on confidence
+        sell_amount = btc_balance * sell_percentage
         action = "SELL"
-        usd_gained = 0.001 * btc_price
-        btc_balance -= 0.001
+        usd_gained = sell_amount * btc_price
+        btc_balance -= sell_amount
         usd_balance += usd_gained
         if btc_balance == 0:
             average_buy_price = 0.0
