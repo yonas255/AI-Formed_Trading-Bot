@@ -238,13 +238,19 @@ def run_trading_bot():
     btc_price = get_real_btc_price()
 
     action = "HOLD"
-    if sentiment_score > 0.3 and predicted_price > btc_price * 1.01 and usd_balance >= 100:
+    
+    # More realistic trading conditions
+    if sentiment_score > 0.2 and predicted_price > btc_price * 1.005 and usd_balance >= 100:
         action = "BUY"
         btc_bought = 100 / btc_price
         usd_balance -= 100
         btc_balance += btc_bought
         average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
-    elif sentiment_score < -0.3 and predicted_price < btc_price * 0.99 and btc_balance >= 0.001:
+    elif btc_balance >= 0.001 and (
+        sentiment_score < -0.1 or  # Less negative sentiment needed
+        predicted_price < btc_price * 0.995 or  # Smaller price drop prediction
+        (average_buy_price > 0 and (btc_price - average_buy_price) / average_buy_price > 0.03)  # 3% profit taking
+    ):
         action = "SELL"
         usd_gained = 0.001 * btc_price
         btc_balance -= 0.001

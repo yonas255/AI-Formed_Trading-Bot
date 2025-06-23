@@ -2093,32 +2093,38 @@ def run_trading_bot_with_results():
     buy_signals = 0
     sell_signals = 0
 
-    # Sentiment signal
-    if sentiment_score > 0.3:
+    # More balanced sentiment signals
+    if sentiment_score > 0.2:
         buy_signals += 1
-    elif sentiment_score < -0.3:
+    elif sentiment_score < -0.1:  # Less restrictive
         sell_signals += 1
 
-    # Price prediction signal
-    if predicted_price > btc_price * 1.01:
+    # More balanced price prediction signals
+    if predicted_price > btc_price * 1.005:  # 0.5% gain
         buy_signals += 1
-    elif predicted_price < btc_price * 0.99:
+    elif predicted_price < btc_price * 0.995:  # 0.5% drop
         sell_signals += 1
 
-    # RSI signal
+    # RSI signals (unchanged)
     if rsi < 30:
         buy_signals += 1
     elif rsi > 70:
         sell_signals += 1
 
-    # Execute trades based on multiple signals
-    if buy_signals >= 2 and usd_balance >= 100:
+    # Additional profit-taking signal
+    if btc_balance > 0 and average_buy_price > 0:
+        profit_percentage = (btc_price - average_buy_price) / average_buy_price
+        if profit_percentage > 0.05:  # 5% profit
+            sell_signals += 1
+
+    # Execute trades based on signals (only need 1 signal now)
+    if buy_signals >= 1 and usd_balance >= 100:
         action = "BUY"
         btc_bought = 100 / btc_price
         usd_balance -= 100
         btc_balance += btc_bought
         average_buy_price = ((average_buy_price * (btc_balance - btc_bought)) + (btc_price * btc_bought)) / btc_balance
-    elif sell_signals >= 2 and btc_balance >= 0.001:
+    elif sell_signals >= 1 and btc_balance >= 0.001:
         action = "SELL"
         usd_gained = 0.001 * btc_price
         btc_balance -= 0.001
