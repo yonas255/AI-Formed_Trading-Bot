@@ -44,3 +44,5 @@
 2025-06-23 00:16:56.395314 | Action: HOLD | Sentiment: 0.1242 | RSI: 15.3 | Predicted BTC: $99961.45 | BTC: $100705.00 | USD: $1000.00 | BTC Bal: 0.000000
 2025-06-23 00:17:20.756218 | Action: BUY | Sentiment: 0.1242 | RSI: 15.3 | Predicted BTC: $103327.86 | BTC: $100705.00 | USD: $900.00 | BTC Bal: 0.000993
 2025-06-23 00:48:23.900891 | Action: BUY | Sentiment: 0.1181 | RSI: 17.8 | Predicted BTC: $101722.02 | BTC: $101135.00 | USD: $910.00 | BTC Bal: 0.000890
+2025-06-23 01:17:18.545511 | Action: BUY | Sentiment: 0.1181 | Buy Signals: 3 (Strength: 1.40) | Sell Signals: 1 (Strength: 0.45) | Predicted: $104994.48 | Current: $100838.00 | USD: $888.00 | BTC: 0.001111 | Profit: 0.00%
+2025-06-23 01:17:27.550476 | Action: BUY | Sentiment: 0.1181 | Buy Signals: 3 (Strength: 1.40) | Sell Signals: 1 (Strength: 0.45) | Predicted: $104994.48 | Current: $100838.00 | USD: $888.00 | BTC: 0.001111 | Profit: 0.00%
