@@ -679,10 +679,15 @@ DASHBOARD_TEMPLATE = """
         function updateChart(data) {
             try {
                 if (priceChart && data && data.historical) {
+                    console.log('📊 Updating chart with', data.historical.prices.length, 'data points');
+                    console.log('💰 Price range:', Math.min(...data.historical.prices), 'to', Math.max(...data.historical.prices));
+                    
                     priceChart.data.labels = data.historical.labels || [];
                     priceChart.data.datasets[0].data = data.historical.prices || [];
                     priceChart.data.datasets[0].label = currentSymbol + ' Price (USD)';
                     priceChart.update('none');
+                } else {
+                    console.warn('⚠️ Chart update failed - missing data:', !!priceChart, !!data, !!data?.historical);
                 }
             } catch (error) {
                 console.error('Error updating chart:', error);
@@ -1052,12 +1057,16 @@ def handle_technical_request(data):
 @socketio.on('request_initial_data')
 def handle_initial_data_request(data):
     crypto = data.get('crypto', 'bitcoin')
+    print(f"📊 Requesting data for {crypto}")
 
     # Send all initial data
     price_data = get_crypto_price_data(crypto)
     sentiment_data = get_live_sentiment_data()
     portfolio_data = get_portfolio_data()
     technical_data = get_technical_analysis(crypto)
+
+    print(f"💰 Sending price data: ${price_data.get('price', 0):,.2f}")
+    print(f"📈 Chart data points: {len(price_data.get('historical', {}).get('prices', []))}")
 
     emit('price_update', price_data)
     emit('sentiment_update', sentiment_data)
@@ -1278,15 +1287,25 @@ def get_kraken_data(crypto_id):
     return generate_price_result(current_price, change_24h)
 
 def generate_price_result(current_price, change_24h):
-    """Generate consistent price result format"""
+    """Generate consistent price result format with realistic variation"""
+    import random
     prices = []
     labels = []
 
+    # Start from a base price and create realistic movement
+    base_price = current_price * (1 - change_24h / 100)  # Price 24h ago
+    
     for i in range(24):
-        hour_change = (change_24h / 24) + (i * 0.08 - 1.0)
-        price_point = current_price * (1 + hour_change / 100)
-        prices.append(price_point)
+        # Create smooth price progression with some volatility
+        progression = (change_24h / 100) * (i / 23)  # Smooth trend
+        volatility = random.uniform(-0.01, 0.01)  # ±1% random variation
+        
+        price_point = base_price * (1 + progression + volatility)
+        prices.append(round(price_point, 2))
         labels.append(f"{i:02d}:00")
+
+    # Ensure the last price matches current price
+    prices[-1] = current_price
 
     return {
         'price': current_price,
