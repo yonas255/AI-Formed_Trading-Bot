@@ -242,87 +242,95 @@ def run_trading_bot():
     # Calculate market indicators for realistic trading
     price_change_pct = (predicted_price - btc_price) / btc_price if predicted_price > 0 else 0
     
-    # Enhanced multi-factor scoring system with equal weight for buy/sell
+    # Balanced multi-factor scoring system with improved sell logic
     buy_signals = 0
     sell_signals = 0
     buy_strength = 0.0
     sell_strength = 0.0
     
-    # More realistic sentiment scoring with lower thresholds
-    if sentiment_score > 0.3:  # Strong positive sentiment
+    # More realistic sentiment scoring with balanced thresholds
+    if sentiment_score > 0.25:  # Strong positive sentiment
         buy_signals += 2
         buy_strength += 0.4
-    elif sentiment_score > 0.15:  # Moderate positive sentiment
+    elif sentiment_score > 0.1:  # Moderate positive sentiment
         buy_signals += 1
         buy_strength += 0.2
-    elif sentiment_score < -0.15:  # Moderate negative sentiment
+    elif sentiment_score < -0.1:  # Moderate negative sentiment
+        sell_signals += 1
+        sell_strength += 0.25
+    elif sentiment_score < -0.25:  # Strong negative sentiment
+        sell_signals += 2
+        sell_strength += 0.5
+    
+    # Enhanced price prediction scoring with realistic thresholds
+    if price_change_pct > 0.015:  # 1.5% predicted gain
+        buy_signals += 2
+        buy_strength += 0.3
+    elif price_change_pct > 0.005:  # 0.5% predicted gain
+        buy_signals += 1
+        buy_strength += 0.15
+    elif price_change_pct < -0.005:  # 0.5% predicted drop
         sell_signals += 1
         sell_strength += 0.2
-    elif sentiment_score < -0.3:  # Strong negative sentiment
+    elif price_change_pct < -0.015:  # 1.5% predicted drop
         sell_signals += 2
         sell_strength += 0.4
     
-    # Enhanced price prediction scoring with realistic thresholds
-    if price_change_pct > 0.02:  # 2% predicted gain
-        buy_signals += 2
-        buy_strength += 0.3
-    elif price_change_pct > 0.008:  # 0.8% predicted gain
-        buy_signals += 1
-        buy_strength += 0.15
-    elif price_change_pct < -0.008:  # 0.8% predicted drop
-        sell_signals += 1
-        sell_strength += 0.15
-    elif price_change_pct < -0.02:  # 2% predicted drop
-        sell_signals += 2
-        sell_strength += 0.3
-    
     # Market momentum analysis (using recent price changes)
     recent_momentum = (btc_price - historical_prices.iloc[-5:].mean()) / historical_prices.iloc[-5:].mean()
-    if recent_momentum > 0.015:  # Strong upward momentum
+    if recent_momentum > 0.01:  # Upward momentum
         buy_signals += 1
-        buy_strength += 0.2
-    elif recent_momentum < -0.015:  # Strong downward momentum
+        buy_strength += 0.15
+    elif recent_momentum < -0.01:  # Downward momentum
         sell_signals += 1
         sell_strength += 0.2
     
-    # Enhanced position management with realistic profit targets
+    # Enhanced position management with more frequent profit taking
     if btc_balance > 0 and average_buy_price > 0:
         current_profit_pct = (btc_price - average_buy_price) / average_buy_price
         
-        # Profit taking with graduated selling
-        if current_profit_pct > 0.08:  # 8% profit - start taking profits
-            sell_signals += 2
-            sell_strength += 0.3
-        elif current_profit_pct > 0.04:  # 4% profit - consider selling
-            sell_signals += 1
-            sell_strength += 0.15
-        elif current_profit_pct < -0.04:  # 4% loss - risk management
-            sell_signals += 1
-            sell_strength += 0.2
-        elif current_profit_pct < -0.07:  # 7% loss - cut losses
+        # More frequent profit taking with lower thresholds
+        if current_profit_pct > 0.05:  # 5% profit - start taking profits
             sell_signals += 2
             sell_strength += 0.4
+        elif current_profit_pct > 0.025:  # 2.5% profit - consider selling
+            sell_signals += 1
+            sell_strength += 0.2
+        elif current_profit_pct < -0.03:  # 3% loss - risk management
+            sell_signals += 1
+            sell_strength += 0.3
+        elif current_profit_pct < -0.06:  # 6% loss - cut losses
+            sell_signals += 2
+            sell_strength += 0.6
+    
+    # Time-based selling pressure (encourage regular trading)
+    import random
+    time_pressure = random.uniform(0, 0.15)  # Random selling pressure
+    if btc_balance > 0:
+        sell_strength += time_pressure
+        if time_pressure > 0.1:
+            sell_signals += 1
     
     # Market fear assessment (simulate VIX-like indicator)
     price_volatility = historical_prices.rolling(10).std().iloc[-1] / historical_prices.rolling(10).mean().iloc[-1]
-    if price_volatility > 0.04:  # High volatility - be cautious
+    if price_volatility > 0.03:  # High volatility - be cautious
         if buy_signals > sell_signals:
-            buy_strength *= 0.7  # Reduce buy confidence in volatile markets
+            buy_strength *= 0.8  # Reduce buy confidence in volatile markets
         else:
-            sell_strength *= 1.2  # Increase sell urgency in volatile markets
+            sell_strength *= 1.1  # Increase sell urgency in volatile markets
     
-    # Calculate total signal strength
+    # Calculate total signal strength with lower thresholds for selling
     total_buy_strength = buy_signals * 0.3 + buy_strength
-    total_sell_strength = sell_signals * 0.3 + sell_strength
+    total_sell_strength = sell_signals * 0.25 + sell_strength  # Lower multiplier for sell signals
     
     # Enhanced position sizing with risk management
-    max_position_pct = 0.10  # 10% max per trade
-    position_size = min(usd_balance * max_position_pct, 120)  # Max $120 per trade
+    max_position_pct = 0.12  # 12% max per trade
+    position_size = min(usd_balance * max_position_pct, 150)  # Max $150 per trade
     
-    # More balanced execution thresholds
-    if total_buy_strength >= 1.0 and usd_balance >= position_size and position_size >= 50:
+    # More balanced execution thresholds with easier selling
+    if total_buy_strength >= 0.8 and usd_balance >= position_size and position_size >= 50:
         # Dynamic position sizing based on signal strength
-        confidence_multiplier = min(total_buy_strength / 2.0, 1.0)
+        confidence_multiplier = min(total_buy_strength / 1.5, 1.0)
         actual_position = position_size * confidence_multiplier
         
         action = "BUY"
@@ -337,22 +345,22 @@ def run_trading_bot():
         else:
             average_buy_price = btc_price
             
-    elif total_sell_strength >= 1.0 and btc_balance >= 0.0005:
+    elif total_sell_strength >= 0.6 and btc_balance >= 0.0003:  # Lower sell threshold
         # Graduated selling based on signal strength and profit levels
         if btc_balance > 0 and average_buy_price > 0:
             current_profit_pct = (btc_price - average_buy_price) / average_buy_price
             
-            # Sell percentage based on signal strength and profit
-            if current_profit_pct > 0.06:  # Good profit
-                sell_ratio = min(0.5, total_sell_strength / 2.0)  # Sell up to 50%
-            elif current_profit_pct > 0.02:  # Small profit
-                sell_ratio = min(0.3, total_sell_strength / 2.5)  # Sell up to 30%
-            elif current_profit_pct < -0.05:  # Loss cutting
+            # More aggressive sell percentage based on signal strength and profit
+            if current_profit_pct > 0.04:  # Moderate profit - sell more
                 sell_ratio = min(0.6, total_sell_strength / 1.5)  # Sell up to 60%
-            else:  # Neutral territory
-                sell_ratio = min(0.25, total_sell_strength / 3.0)  # Sell up to 25%
+            elif current_profit_pct > 0.015:  # Small profit - take some
+                sell_ratio = min(0.4, total_sell_strength / 2.0)  # Sell up to 40%
+            elif current_profit_pct < -0.04:  # Loss cutting - be aggressive
+                sell_ratio = min(0.7, total_sell_strength / 1.2)  # Sell up to 70%
+            else:  # Neutral territory - still trade
+                sell_ratio = min(0.35, total_sell_strength / 2.5)  # Sell up to 35%
         else:
-            sell_ratio = min(0.3, total_sell_strength / 2.0)
+            sell_ratio = min(0.4, total_sell_strength / 1.8)
         
         sell_amount = btc_balance * sell_ratio
         action = "SELL"
