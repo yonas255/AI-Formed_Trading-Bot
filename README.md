@@ -24,6 +24,7 @@ Trading Signals: Multi-factor signal generation
  Analysis & Monitoring
 Google Sheets Integration: Automatic trade logging
 Email Alerts: SendGrid integration for trade notifications
+automation: Works with Cron-Job.org. runs by it self 5 times in 24 hours.
 Confidence Reports: Model performance and reliability metrics
 Backtesting: Historical performance validation
 
@@ -39,6 +40,7 @@ Deployment: Replit (Production ready)
 1. Clone & Setup
 git clone <your-repo-url>
 cd crypto-trading-bot
+
 2. Environment Variables
 Set up the following secrets in Replit's Secrets tab:
 
@@ -59,7 +61,12 @@ Share it with: trading-bot-logger@trading-bot-project-460614.iam.gserviceaccount
 Give "Editor" permissions
 Copy the Sheet ID to GOOGLE_SHEET_ID secret
 
-5. Run the Application
+4. Automation (Optional)
+   
+ Use https://cron-job.org to ping this URL every 4 hours:
+  https://<your-replit-username>.replit.app/run
+  
+6. Run the Application
 Click the Run button in Replit or use:
 python3 app.py
  
@@ -265,3 +272,8 @@ Future Enhancements
  Social sentiment from Twitter
  Options trading simulation
  Mobile app development
+
+Author
+
+ Built by Yonas Haf, as part of the Academic Internship Project 2025
+If you like it, ⭐ star this repo.
